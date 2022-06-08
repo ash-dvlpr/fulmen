@@ -1,47 +1,31 @@
-use engine;
 use crate::constants as constants;
-
-use engine::winit as winit;
-use winit::{
-    event_loop::{ EventLoop, ControlFlow },
-    event::{Event, VirtualKeyCode, ElementState, KeyboardInput, WindowEvent},
-    window::{Window, WindowBuilder},
+use engine::{
+    app::{LveApplication, LveApplicationBuilder}, 
+    winit::{
+        event_loop::{ EventLoop, ControlFlow },
+        event::{Event, VirtualKeyCode, ElementState, KeyboardInput, WindowEvent},
+        // window::{Window, WindowBuilder},
+    },
 };
 
+
 pub struct Application { // lifetime <'a>
-    window: Window,
+    engine_app: LveApplication, 
     // objects: Vec<String>,
     // camera: &'a String,
     // camera_controler: ???
-    // renderer: engine::renderer,
-    // render_system: engine::render_system,
 }
 
 impl Application {
-    pub fn new() -> (EventLoop<()>, Self) {
-        let (event_loop, window) = Self::new_window();
-        
-        (event_loop, Self {
-            window,
-        })
-    }
-    
-    fn new_window() -> (EventLoop<()>, Window) {
-        let event_loop = EventLoop::new();
-        let window = WindowBuilder::new()
-            .with_title(constants::WINDOW_NAME)
-            .with_inner_size(winit::dpi::LogicalSize::new(constants::WINDOW_WIDTH, constants::WINDOW_HEIGHT))
-            .with_resizable(true)
-            .build(&event_loop)
-            .expect("Failed to create window.");
+    pub fn new() -> (Self, EventLoop<()>) {
+        let (engine_app, event_loop) = LveApplicationBuilder::new()
+            .with_window_name(constants::WINDOW_NAME)
+            .with_resizable_window(false)
+            .build();
 
-        (event_loop, window)
-    }
-
-    fn draw_frame(&mut self) {
-        engine::hello();
-        // TODO: Drawing logic
-        // TODO: Limit draw calls per second (FPS)
+        (Self{
+            engine_app,   
+        }, event_loop)
     }
 
     pub fn run(mut self, event_loop: EventLoop<()>) {
@@ -61,6 +45,15 @@ impl Application {
                                 ..
                             } => *control_flow = ControlFlow::Exit,
     
+                            // ! Testing. Calls engine::hello() when pressing 'H'
+                            WindowEvent::KeyboardInput { 
+                                input: KeyboardInput { 
+                                    state: ElementState::Pressed, 
+                                    virtual_keycode: Some(VirtualKeyCode::H),
+                                    .. 
+                                }, .. 
+                            } => { engine::hello(); },
+
                             // Unssuported Window Events
                             _ => {}
                         }
@@ -68,12 +61,12 @@ impl Application {
     
                 //? Events for rendering
                 Event::RedrawRequested(_window_id) =>  {
-                    self.draw_frame();
+                    // self.draw_frame();
                 },
     
                 Event::MainEventsCleared => {
                     // RedrawRequested will only trigger once, unless we manually request it.
-                    self.window.request_redraw();
+                    self.engine_app.window.request_redraw(); // This should be moved into LveApplication
                 },
                 
                 //? The rest of events
