@@ -25,6 +25,8 @@ impl LveApplication {
 
 // =============== Builder ===============
 pub struct LveApplicationBuilder {
+    app_name: Option<&'static str>,
+    app_version: Option<u32>,
     window_name: Option<String>,
     window_size: Option<LogicalSize<u32>>,
     window_resizable: Option<bool>,
@@ -33,6 +35,8 @@ pub struct LveApplicationBuilder {
 impl LveApplicationBuilder {
     fn default() -> Self {
         Self {
+            app_name: None,
+            app_version: None,
             window_name: None,
             window_size: None,
             window_resizable: None,
@@ -59,7 +63,9 @@ impl LveApplicationBuilder {
 
         let mut state_config = VkState::builder();
 
-            .expect("Failed to create the Vulkan Instance.");
+        // Load in the app's name & version if configured
+        if let Some(_name) = self.app_name { state_config = state_config.with_app_name(_name); }
+        if let Some(_version) = self.app_version { state_config = state_config.with_app_version(_version); }
 
         // Finish building the VkState
         let state = state_config.build().expect("Failed to create the Vulkan Instance.");
