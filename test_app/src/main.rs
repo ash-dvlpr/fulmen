@@ -1,4 +1,6 @@
-use engine;
+use test_app::app::Application;
+
 fn main() {
-    engine::hello();
+    let (e_loop, app) = Application::new();
+    app.run(e_loop);
 }
