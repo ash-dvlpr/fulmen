@@ -1,0 +1,11 @@
+# I'm dividing the project into two parts, a bit like The Cherno did on his engine.
+# Part one is the engine itself. A rendering engine's job is to be fed a assets and render them to the screen.
+# The other part is the game/application/visualizer, that makes use of the "engine" to render stuff to the screen.
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[workspace]
+members = [
+    "lvengine", 
+    "test_app",
+]

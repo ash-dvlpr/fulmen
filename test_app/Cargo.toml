@@ -1,0 +1,9 @@
+[package]
+name = "test_app"
+authors = ["Xeros08 <42175313+Xeros08@users.noreply.github.com>"]
+version = "0.0.1"
+description = "Test app that makes use of the rendering engine"
+edition = "2021"
+
+[dependencies]
+engine = { package = "lvengine", path = "../lvengine", features=["debug"] }

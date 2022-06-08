@@ -1,0 +1,15 @@
+[package]
+name = "lvengine"
+authors = ["Xeros08 <42175313+Xeros08@users.noreply.github.com>"]
+version = "0.0.1"
+description = "Rendering Engine made with Vulkan"
+edition = "2021"
+
+[dependencies]
+# winit = "0.26.1"
+# ash = { version = "0.36.0", default-features = false, features = ["linked", "debug"] }
+# ash-window = "0.9.0"
+
+[features]
+validation_layers = []
+debug = ["validation_layers"]
