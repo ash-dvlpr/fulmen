@@ -3,9 +3,35 @@
 # The other part is the game/application/visualizer, that makes use of the "engine" to render stuff to the screen.
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+cargo-features = ["named-profiles","profile-overrides"]
 
 [workspace]
 members = [
     "lvengine", 
     "test_app",
 ]
+
+# Profile fast to compile, okay enough to run, no debug
+[profile.dev]
+opt-level = 1
+debug = false
+debug-assertions = true
+overflow-checks = true
+lto = false # Faster linking, worse optimizations
+panic = 'unwind'
+incremental = true # Better re-compilation times
+codegen-units = 16 # Same as non incremental builds
+# Dependencies | AKA | Packages that aren't members of the workspace
+[profile.dev.package."*"]
+opt-level = 3
+
+# Profile in case 'dev' doesn't have enough debug info
+[profile.debuginfo]
+inherits= 'dev'
+debug = true
+
+[profile.release]
+opt-level = 3
+debug = 0
+incremental = false
+lto = true
