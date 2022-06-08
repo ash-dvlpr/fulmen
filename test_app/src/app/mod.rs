@@ -18,7 +18,7 @@ pub struct Application { // lifetime <'a>
 
 impl Application {
     pub fn new() -> (Self, EventLoop<()>) {
-        let (engine_app, event_loop) = LveApplicationBuilder::new()
+        let (engine_app, event_loop) = LveApplication::builder()
             .with_window_name(constants::WINDOW_NAME)
             .with_resizable_window(false)
             .build();

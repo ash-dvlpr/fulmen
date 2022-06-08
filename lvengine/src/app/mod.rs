@@ -1,7 +1,9 @@
 use crate::constants;
+use crate::vulkan::state::VkStateBuilder;
 use crate::vulkan::{
-    renderer::Renderer,
-    render_system::RenderSystem,
+    state::VkState,
+    // renderer::Renderer,
+    // render_system::RenderSystem,
 };
 
 use winit::{
@@ -12,11 +14,13 @@ use winit::{
 // =======================================
 pub struct LveApplication {
     pub window: Window,
+    state: VkState,
     // renderer: Renderer,
     // render_system: RenderSystem,
 }
 
-impl LveApplication {
+impl LveApplication { 
+    pub fn builder() -> LveApplicationBuilder { LveApplicationBuilder::default() }
 
 }
 
@@ -35,23 +39,14 @@ impl LveApplicationBuilder {
             window_resizable: None,
         }
     }
-    pub fn new() -> LveApplicationBuilder {
-        Self::default()
-    }
 
     //? Optional Configuration
-    pub fn with_window_name(mut self, name: &str) -> LveApplicationBuilder {
-        self.window_name = Some(name.to_owned());
-        self
-    }
-    pub fn with_window_size(mut self, width: u32, height: u32) -> LveApplicationBuilder {
-        self.window_size = Some(LogicalSize::new(width, height));
-        self
-    }
-    pub fn with_resizable_window(mut self, resizable: bool) -> LveApplicationBuilder {
-        self.window_resizable = Some(resizable);
-        self
-    }
+    pub fn with_window_name(mut self, name: &str) -> LveApplicationBuilder { 
+        self.window_name = Some(name.to_owned()); self }
+    pub fn with_window_size(mut self, width: u32, height: u32) -> LveApplicationBuilder { 
+        self.window_size = Some(LogicalSize::new(width, height)); self }
+    pub fn with_resizable_window(mut self, resizable: bool) -> LveApplicationBuilder { 
+        self.window_resizable = Some(resizable); self }
 
     //? Build Step
     pub fn build(self) -> (LveApplication, EventLoop<()>) { 
@@ -63,8 +58,13 @@ impl LveApplicationBuilder {
             .build(&event_loop)
             .expect("Failed to create the window.");
 
+        let state = VkState::builder()
+            .build()
+            .expect("Failed to create the Vulkan Instance.");
+
         (LveApplication {
             window: window,
+            state: state,
         }, event_loop)
     }
 }
