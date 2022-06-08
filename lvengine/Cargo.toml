@@ -3,6 +3,7 @@ name = "lvengine"
 authors = ["Xeros08 <42175313+Xeros08@users.noreply.github.com>"]
 version = "0.0.1"
 description = "Rendering Engine made with Vulkan"
+crate-type = ["rlib"]
 edition = "2021"
 
 [dependencies]
