@@ -2,8 +2,8 @@ use ash::{self, vk};
 use std::ffi;
 use crate::constants;
 
-pub struct VkState {
-    _entry: ash::Entry,
+pub(crate) struct VkState {
+    entry: ash::Entry,
     // instance: ash::Instance,
 }
 
@@ -18,28 +18,29 @@ impl VkState {
 pub(crate) struct VkStateBuilder {
     app_name: Option<&'static str>, // ! This will, one way or another, be hardcoded
     app_version: Option<u32>,
-    extensions_to_enable: Option<Vec<()>>,
-    layers_to_enable: Option<Vec<()>>,
+    required_extensions: Option<Vec<&'static str>>,
+    required_layers: Option<Vec<&'static str>>,
 }
 
 impl VkStateBuilder {
-    fn default() -> VkStateBuilder {
-        VkStateBuilder {
+    fn default() -> Self {
+        Self {
             app_name: None,
             app_version: None,
-            extensions_to_enable: None,
-            layers_to_enable: None,
+            required_extensions: None,
+            required_layers: None,
         }
     }
 
     //? Optional Configuration
-    pub fn with_app_name(mut self, name: &'static str) -> VkStateBuilder {
+    pub(crate) fn with_app_name(mut self, name: &'static str) -> Self {
         self.app_name = Some(name); self }
-    pub fn with_app_version(mut self, version: u32) -> VkStateBuilder { 
+    pub(crate) fn with_app_version(mut self, version: u32) -> Self { 
         self.app_version = Some(version); self }
+
     
     //? Build Step
-    pub fn build(self) -> Result<VkState, Box<dyn std::error::Error>> {
+    pub(crate) fn build(self) -> Result<VkState, Box<dyn std::error::Error>> {
         // ! Entry
         let entry = ash::Entry::linked();
 
@@ -67,7 +68,7 @@ impl VkStateBuilder {
         todo!("VkStateBuilder: Create Vulkan Instance");
 
         Ok(VkState {
-            _entry: entry,
+            entry: entry,
         })
     }
 }

@@ -21,7 +21,6 @@ pub struct LveApplication {
 
 impl LveApplication { 
     pub fn builder() -> LveApplicationBuilder { LveApplicationBuilder::default() }
-
 }
 
 // =============== Builder ===============
@@ -32,8 +31,8 @@ pub struct LveApplicationBuilder {
 }
 
 impl LveApplicationBuilder {
-    fn default() -> LveApplicationBuilder {
-        LveApplicationBuilder {
+    fn default() -> Self {
+        Self {
             window_name: None,
             window_size: None,
             window_resizable: None,
@@ -41,11 +40,11 @@ impl LveApplicationBuilder {
     }
 
     //? Optional Configuration
-    pub fn with_window_name(mut self, name: &str) -> LveApplicationBuilder { 
+    pub fn with_window_name(mut self, name: &str) -> Self { 
         self.window_name = Some(name.to_owned()); self }
-    pub fn with_window_size(mut self, width: u32, height: u32) -> LveApplicationBuilder { 
+    pub fn with_window_size(mut self, width: u32, height: u32) -> Self { 
         self.window_size = Some(LogicalSize::new(width, height)); self }
-    pub fn with_resizable_window(mut self, resizable: bool) -> LveApplicationBuilder { 
+    pub fn with_resizable_window(mut self, resizable: bool) -> Self { 
         self.window_resizable = Some(resizable); self }
 
     //? Build Step
@@ -58,9 +57,12 @@ impl LveApplicationBuilder {
             .build(&event_loop)
             .expect("Failed to create the window.");
 
-        let state = VkState::builder()
-            .build()
+        let mut state_config = VkState::builder();
+
             .expect("Failed to create the Vulkan Instance.");
+
+        // Finish building the VkState
+        let state = state_config.build().expect("Failed to create the Vulkan Instance.");
 
         (LveApplication {
             window: window,
