@@ -6,4 +6,4 @@ description = "Test app that makes use of the rendering engine"
 edition = "2021"
 
 [dependencies]
-engine = { package = "lvengine", path = "../lvengine", features=["debug"] }
+engine = { package = "lvengine", path = "../lvengine", features=["validation_layers"] }

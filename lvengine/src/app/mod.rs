@@ -30,6 +30,8 @@ pub struct LveApplicationBuilder {
     window_name: Option<String>,
     window_size: Option<LogicalSize<u32>>,
     window_resizable: Option<bool>,
+    #[cfg(feature = "validation_layers")]
+    validation: Option<bool>,
 }
 
 impl LveApplicationBuilder {
@@ -40,6 +42,8 @@ impl LveApplicationBuilder {
             window_name: None,
             window_size: None,
             window_resizable: None,
+            #[cfg(feature = "validation_layers")]
+            validation: None,
         }
     }
 
@@ -50,6 +54,10 @@ impl LveApplicationBuilder {
         self.window_size = Some(LogicalSize::new(width, height)); self }
     pub fn with_resizable_window(mut self, resizable: bool) -> Self { 
         self.window_resizable = Some(resizable); self }
+        
+    #[cfg(feature = "validation_layers")]
+    pub fn with_validation_enabled(mut self, enabled: bool) -> Self { 
+        self.validation = Some(enabled); self }
 
     //? Build Step
     pub fn build(self) -> (LveApplication, EventLoop<()>) { 
@@ -66,6 +74,12 @@ impl LveApplicationBuilder {
         // Load in the app's name & version if configured
         if let Some(_name) = self.app_name { state_config = state_config.with_app_name(_name); }
         if let Some(_version) = self.app_version { state_config = state_config.with_app_version(_version); }
+
+        // Enable the vulkan validation layers as configured
+        #[cfg(feature = "validation_layers")] { 
+            if self.validation.unwrap_or(constants::VK_LAYER_VALIDATION_ENABLED_DEFAULT) {
+                state_config = state_config.with_validation_layers(); } 
+        }
 
         // Finish building the VkState
         let state = state_config.build().expect("Failed to create the Vulkan Instance.");

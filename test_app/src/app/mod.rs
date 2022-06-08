@@ -21,6 +21,7 @@ impl Application {
         let (engine_app, event_loop) = LveApplication::builder()
             .with_window_name(constants::WINDOW_NAME)
             .with_resizable_window(false)
+            .with_validation_enabled(true)
             .build();
 
         (Self{

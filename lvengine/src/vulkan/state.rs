@@ -1,5 +1,6 @@
-use ash::{self, vk};
 use std::ffi;
+
+use ash::{self, vk};
 use crate::constants;
 
 pub(crate) struct VkState {
@@ -38,6 +39,23 @@ impl VkStateBuilder {
     pub(crate) fn with_app_version(mut self, version: u32) -> Self { 
         self.app_version = Some(version); self }
 
+    #[cfg(feature = "validation_layers")]
+    pub(crate) fn with_validation_layers(mut self) -> Self { 
+        self.add_layer(constants::VK_LAYER_VALIDATION) 
+    }
+    #[cfg(feature = "layer_enabling")]
+    fn add_layer(mut self, layer_name: &'static str) -> Self {
+        // Initialize None Option
+        if self.required_layers.is_none() { self.required_layers = Some(Vec::new()); }
+        self.required_layers.as_mut().unwrap().push(layer_name);
+        self
+    }
+    #[cfg(feature = "extension_enabling")]
+    fn add_extension(mut self) -> Self {
+        // Initialize None Options
+        if self.required_extensions.is_none() { self.required_extensions = Some(Vec::new()); }
+        self
+    }
     
     //? Build Step
     pub(crate) fn build(self) -> Result<VkState, Box<dyn std::error::Error>> {
@@ -63,6 +81,10 @@ impl VkStateBuilder {
         // Append the ApplicationInfo to the InstanceCreateInfo
         let mut instance_create_info = vk::InstanceCreateInfo::builder()
             .application_info(&app_info);
+
+        // Enable required layers and extensions
+
+        // Create the Instance
         
         // TODOs
         todo!("VkStateBuilder: Create Vulkan Instance");

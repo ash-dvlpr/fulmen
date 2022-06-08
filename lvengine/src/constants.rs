@@ -11,4 +11,12 @@ pub(crate) const DEFAULT_APP_VERSION: u32 = vk::make_api_version(0, 0, 0, 1);
 
 pub(crate) const ENGINE_NAME: &str = "Little Vulkan Engine";
 pub(crate) const ENGINE_VERSION: u32 = vk::make_api_version(0, 0, 0, 1);
-pub(crate) const VK_VERSION: u32 = vk::API_VERSION_1_2;
+pub(crate) const VK_VERSION: u32 = vk::API_VERSION_1_3;
+
+
+// ? Alvaliable Layers and Extensions
+// Layers
+#[cfg(feature = "validation_layers")]
+pub(crate) const VK_LAYER_VALIDATION: &str = "VK_LAYER_KHRONOS_validation";
+#[cfg(feature = "validation_layers")]
+pub(crate) const VK_LAYER_VALIDATION_ENABLED_DEFAULT: bool = false;
