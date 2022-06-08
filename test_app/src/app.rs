@@ -1,6 +1,7 @@
 use engine;
 use crate::constants as constants;
 
+use engine::winit as winit;
 use winit::{
     event_loop::{ EventLoop, ControlFlow },
     event::{Event, VirtualKeyCode, ElementState, KeyboardInput, WindowEvent},

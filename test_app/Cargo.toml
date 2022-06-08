@@ -7,4 +7,3 @@ edition = "2021"
 
 [dependencies]
 engine = { package = "lvengine", path = "../lvengine", features=["debug"] }
-winit = "0.26.1"

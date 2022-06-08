@@ -326,6 +326,9 @@ dependencies = [
 [[package]]
 name = "lvengine"
 version = "0.0.1"
+dependencies = [
+ "winit",
+]
 
 [[package]]
 name = "malloc_buf"
@@ -658,7 +661,6 @@ name = "test_app"
 version = "0.0.1"
 dependencies = [
  "lvengine",
- "winit",
 ]
 
 [[package]]
