@@ -8,14 +8,13 @@ edition = "2021"
 
 [dependencies]
 winit = "0.26.1"
-ash = { version = "0.36.0", default-features = false, features = ["linked", "debug"] }
-# ash-window = "0.9.0"
+ash = { version = "0.37.0", default-features = false, features = ["linked", "debug"] }
+ash-window = "0.10.0"
 
 [features]
-default = ["extension_enabling"]
-validation_layers = ["layer_enabling"]
-extension_enabling = []
-layer_enabling = []
+default = []
+validation_layers = ["optional_layers"]
+optional_layers = []
 # Vulkan Features should be added as crate features so that the 'LveApplicationBuilder'
 # can enable VK-Features itself if the cargo feature is enabled. 
 

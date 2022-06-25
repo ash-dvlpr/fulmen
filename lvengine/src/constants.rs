@@ -1,5 +1,6 @@
-use winit::dpi::LogicalSize;
 use ash::vk;
+use std::ffi;
+use winit::dpi::LogicalSize;
 
 // ? Defaults
 pub(crate) const DEFAULT_WINDOW_NAME: &str = "LveEngine App";
@@ -17,6 +18,6 @@ pub(crate) const VK_VERSION: u32 = vk::API_VERSION_1_3;
 // ? Alvaliable Layers and Extensions
 // Layers
 #[cfg(feature = "validation_layers")]
-pub(crate) const VK_LAYER_VALIDATION: &str = "VK_LAYER_KHRONOS_validation";
-#[cfg(feature = "validation_layers")]
-pub(crate) const VK_LAYER_VALIDATION_ENABLED_DEFAULT: bool = false;
+pub(crate) const fn vk_validation_layer_name() -> &'static ffi::CStr {
+    unsafe { ffi::CStr::from_bytes_with_nul_unchecked(b"VK_LAYER_KHRONOS_validation\0") }
+}
