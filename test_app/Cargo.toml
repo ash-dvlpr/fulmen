@@ -10,4 +10,4 @@ engine = { package = "lvengine", path = "../lvengine" }
 
 [features]
 default = ["dev_features"]
-dev_features = ["engine/validation_layers"]
+dev_features = ["engine/dev_features"]

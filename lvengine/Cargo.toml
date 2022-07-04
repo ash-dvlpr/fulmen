@@ -12,7 +12,6 @@ ash = { version = "0.37.0", default-features = false, features = ["linked"] }
 ash-window = "0.10.0"
 
 [features]
-default = ["dev_features"]
 dev_features = ["ash/debug", "validation_layers"]
 
 optional_layers = []

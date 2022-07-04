@@ -105,8 +105,8 @@ impl VkStateBuilder {
 
         // ! ApplicationInfo
         // CString intermediates needed for the ffi with Vulkan
-        let engine_name = ffi::CString::new(constants::ENGINE_NAME).unwrap();
-        let app_name = ffi::CString::new(self.app_name.unwrap()).unwrap();
+        let engine_name = ffi::CString::new(constants::ENGINE_NAME)?;
+        let app_name = ffi::CString::new(self.app_name.unwrap())?;
 
         // Use the defaults at 'constants' for the None Options
         let app_info = vk::ApplicationInfo::builder()
@@ -123,8 +123,7 @@ impl VkStateBuilder {
             .application_info(&app_info);
 
         // Add the window's required extensions to the list of required_extensions
-        ash_window::enumerate_required_extensions(window_handle)
-            .expect("Failed to enumerate Required Window Extensions")
+        ash_window::enumerate_required_extensions(window_handle)?
             .iter()
             .for_each(|ext: &*const raw::c_char| { 
                 self.required_extensions.push(*ext);

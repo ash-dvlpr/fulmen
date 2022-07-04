@@ -15,7 +15,7 @@ pub(crate) unsafe extern "system" fn vulkan_debug_utils_callback(
     let severity = format!("{:?}", message_severity).to_lowercase();
     let ty = format!("{:?}", message_type).to_lowercase();
     
-    println!("[VULKAN][{}][{}] {:?}", severity, ty, message);
+    println!("[VULKAN][{}][{}] {}", severity, ty, message.to_string_lossy());
     vk::FALSE
 }
 
