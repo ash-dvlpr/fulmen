@@ -1,17 +1,23 @@
 use std::ffi;
 use std::os::raw;
 
-use ash::{self, vk, extensions::ext};
+use ash::{self, vk, extensions::{ext, khr}};
 use winit::window::Window;
 use crate::constants;
 
 pub(crate) struct VkState {
     entry: ash::Entry,
     instance: ash::Instance,
+    surface_loader: khr::Surface,
+    
+    pdevice: vk::PhysicalDevice,
+    queue_family_index: u32,
+    surface: vk::SurfaceKHR,
+    
     #[cfg(feature = "validation_layers")]
-    debug_utils: ext::DebugUtils,
+    debug_utils_loader: ext::DebugUtils,
     #[cfg(feature = "validation_layers")]
-    debug_call_back: vk::DebugUtilsMessengerEXT,
+    debug_callback: vk::DebugUtilsMessengerEXT,
 }
 
 
@@ -48,8 +54,8 @@ impl Drop for VkState {
             // self.device.destroy_device(None);
             // self.surface_loader.destroy_surface(self.surface, None);
             #[cfg(feature = "validation_layers")] {
-                self.debug_utils
-                    .destroy_debug_utils_messenger(self.debug_call_back, None);
+                self.debug_utils_loader
+                    .destroy_debug_utils_messenger(self.debug_callback, None);
                 
             }
             self.instance.destroy_instance(None);
@@ -100,101 +106,115 @@ impl VkStateBuilder {
     
     //? Build Step
     pub(crate) fn build(mut self, window_handle: &Window) -> Result<VkState, Box<dyn std::error::Error>> {
-        // ! Entry
-        let entry = ash::Entry::linked();
+        unsafe {
+            // ! Entry
+            let entry = ash::Entry::linked();
 
-        // ! ApplicationInfo
-        // CString intermediates needed for the ffi with Vulkan
-        let engine_name = ffi::CString::new(constants::ENGINE_NAME)?;
-        let app_name = ffi::CString::new(self.app_name.unwrap())?;
+            // ! ApplicationInfo
+            // CString intermediates needed for the ffi with Vulkan
+            let engine_name = ffi::CString::new(constants::ENGINE_NAME)?;
+            let app_name = ffi::CString::new(self.app_name.unwrap())?;
 
-        // Use the defaults at 'constants' for the None Options
-        let app_info = vk::ApplicationInfo::builder()
-            .application_name(app_name.as_c_str())
-            .application_version(self.app_version.unwrap())
-            .engine_name(engine_name.as_c_str())
-            .engine_version(constants::ENGINE_VERSION)
-            .api_version(constants::VK_VERSION)
-            .build();
-        
-        // ! InstanceCreateInfo
-        // Append the ApplicationInfo to the InstanceCreateInfo
-        let mut instance_create_info = vk::InstanceCreateInfo::builder()
-            .application_info(&app_info);
-
-        // Add the window's required extensions to the list of required_extensions
-        ash_window::enumerate_required_extensions(window_handle)?
-            .iter()
-            .for_each(|ext: &*const raw::c_char| { 
-                self.required_extensions.push(*ext);
-            });
-
-        // // Extensions for iOS and MacOS
-        // #[cfg(any(target_os = "macos", target_os = "ios"))] 
-        // {
-        //     instance_create_info = instance_create_info
-        //         .flags(vk::InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR);
-        //     self = self
-        //         .add_extension(vk::KhrPortabilityEnumerationFn::name().as_ptr())
-        //         .add_extension(vk::KhrGetPhysicalDeviceProperties2Fn::name().as_ptr());
-        // }
-
-        // !  DebugUtilsMessengerCreateInfo
-        #[cfg(feature = "validation_layers")] 
-        let mut debug_create_info;
-        #[cfg(feature = "validation_layers")] {
-            debug_create_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
-                .message_severity( // Severities that trigger the callback
-                      vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-                    | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-                    | vk::DebugUtilsMessageSeverityFlagsEXT::INFO
-                    //| vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
-                )
-                .message_type( // Type of messages sent to the callback
-                      vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
-                    | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
-                    | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
-                )
-                .pfn_user_callback(Some(super::utils::vulkan_debug_utils_callback))
+            // Use the defaults at 'constants' for the None Options
+            let app_info = vk::ApplicationInfo::builder()
+                .application_name(app_name.as_c_str())
+                .application_version(self.app_version.unwrap())
+                .engine_name(engine_name.as_c_str())
+                .engine_version(constants::ENGINE_VERSION)
+                .api_version(constants::VK_VERSION)
                 .build();
+            
+            // ! InstanceCreateInfo
+            // Append the ApplicationInfo to the InstanceCreateInfo
+            let mut instance_create_info = vk::InstanceCreateInfo::builder()
+                .application_info(&app_info);
 
-            // Extend the InstanceCreateInfo with the DebugUtilsMessengerCreateInfo
-            instance_create_info = instance_create_info.push_next(&mut debug_create_info);
-        }
-        
-        // Append the required layers and extensions to the InstanceCreateInfo
-        #[cfg(feature = "optional_layers")] {
-            instance_create_info = instance_create_info.enabled_layer_names(&self.required_layers);
-        }
-        instance_create_info = instance_create_info.enabled_extension_names(&self.required_extensions);
+            // Add the window's required extensions to the list of required_extensions
+            ash_window::enumerate_required_extensions(window_handle)?
+                .iter()
+                .for_each(|ext: &*const raw::c_char| { 
+                    self.required_extensions.push(*ext);
+                });
+
+            // // Extensions for iOS and MacOS
+            // #[cfg(any(target_os = "macos", target_os = "ios"))] 
+            // {
+            //     instance_create_info = instance_create_info
+            //         .flags(vk::InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR);
+            //     self = self
+            //         .add_extension(vk::KhrPortabilityEnumerationFn::name().as_ptr())
+            //         .add_extension(vk::KhrGetPhysicalDeviceProperties2Fn::name().as_ptr());
+            // }
+
+            // !  DebugUtilsMessengerCreateInfo
+            #[cfg(feature = "validation_layers")] 
+            let mut debug_create_info;
+            #[cfg(feature = "validation_layers")] {
+                debug_create_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
+                    .message_severity( // Severities that trigger the callback
+                        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
+                        | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+                        | vk::DebugUtilsMessageSeverityFlagsEXT::INFO
+                        //| vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
+                    )
+                    .message_type( // Type of messages sent to the callback
+                        vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
+                        | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE
+                        | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
+                    )
+                    .pfn_user_callback(Some(super::utils::vulkan_debug_utils_callback))
+                    .build();
+
+                // Extend the InstanceCreateInfo with the DebugUtilsMessengerCreateInfo
+                instance_create_info = instance_create_info.push_next(&mut debug_create_info);
+            }
+            
+            // Append the required layers and extensions to the InstanceCreateInfo
+            #[cfg(feature = "optional_layers")] {
+                instance_create_info = instance_create_info.enabled_layer_names(&self.required_layers);
+            }
+            instance_create_info = instance_create_info.enabled_extension_names(&self.required_extensions);
 
 
-        // TODO : Check that the layers and extensions are supported
+            // TODO : Check that the layers and extensions are supported
 
-        // ! Instance
-        let instance = unsafe { entry.create_instance(&instance_create_info, None)? };
+            // ! Instance
+            let instance = entry.create_instance(&instance_create_info, None)?;
 
-        // ! DebugUtils
-        #[cfg(feature = "validation_layers")]
-        let debug_utils;
-        #[cfg(feature = "validation_layers")]
-        let debug_call_back;
-        
-        #[cfg(feature = "validation_layers")] {
-            debug_utils = ext::DebugUtils::new(&entry, &instance);
-            debug_call_back = unsafe {debug_utils.create_debug_utils_messenger(&debug_create_info, None)? };
-        }
-        
-        // ! Physical Device
-        // TODO : Physical Device 
-
-        Ok(VkState {
-            entry,
-            instance,
+            // ! DebugUtils
             #[cfg(feature = "validation_layers")]
-            debug_utils,
+            let debug_utils_loader;
             #[cfg(feature = "validation_layers")]
-            debug_call_back,
-        })
+            let debug_callback;
+            
+            #[cfg(feature = "validation_layers")] {
+                debug_utils_loader = ext::DebugUtils::new(&entry, &instance);
+                debug_callback = debug_utils_loader.create_debug_utils_messenger(&debug_create_info, None)?;
+            }
+
+            // TODO : Surface and Physical Device
+            // ! Surface
+            let surface_loader = khr::Surface::new(&entry, &instance);
+            let surface = ash_window::create_surface(&entry, &instance, &window_handle, None)?;
+
+            // ! Physical Device
+            let (queue_family_index, pdevice) = super::utils::select_physical_device(&instance, &surface_loader, &surface).unwrap();
+            
+        
+            Ok(VkState {
+                entry,
+                instance,
+                surface_loader,
+
+                pdevice,
+                queue_family_index,
+                surface,
+
+                #[cfg(feature = "validation_layers")]
+                debug_utils_loader,
+                #[cfg(feature = "validation_layers")]
+                debug_callback,
+            })
+        }
     }
 }
