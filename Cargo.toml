@@ -11,14 +11,15 @@ members = [
     "test_app",
 ]
 
+# Profiles are "dev", "devinfo", "release" (use with --no-default-features)
 # Profile fast to compile, okay enough to run, no debug
 [profile.dev]
 opt-level = 1
 debug = false
 debug-assertions = true
 overflow-checks = true
-lto = false # Faster linking, worse optimizations
 panic = 'unwind'
+lto = false # Faster linking, worse optimizations
 incremental = true # Better re-compilation times
 codegen-units = 16 # Same as non incremental builds
 # Dependencies | AKA | Packages that aren't members of the workspace
@@ -33,5 +34,6 @@ debug = true
 [profile.release]
 opt-level = 3
 debug = 0
-incremental = false
+debug-assertions = false
 lto = true
+incremental = false
