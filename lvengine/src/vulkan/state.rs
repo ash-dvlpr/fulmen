@@ -52,7 +52,7 @@ impl Drop for VkState {
             // self.swapchain_loader
             //     .destroy_swapchain(self.swapchain, None);
             // self.device.destroy_device(None);
-            // self.surface_loader.destroy_surface(self.surface, None);
+            self.surface_loader.destroy_surface(self.surface, None);
             #[cfg(feature = "validation_layers")] {
                 self.debug_utils_loader
                     .destroy_debug_utils_messenger(self.debug_callback, None);

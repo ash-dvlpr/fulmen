@@ -1,5 +1,6 @@
 use ash::{self, vk, extensions::khr};
 use std::ffi;
+use std::os::raw;
 
 // ============ FFI Stuff ============
 /// External callback function used by the validation layer 
@@ -20,6 +21,12 @@ pub(crate) unsafe extern "system" fn vulkan_debug_utils_callback(
 }
 
 // ============== Other ==============
+/// Given a slice of c_chars, return a String
+pub(crate) fn raw_cstr_to_string(raw_string: &[raw::c_char]) -> String {
+    let cstr = unsafe { std::ffi::CStr::from_ptr(raw_string.as_ptr()) };
+    cstr.to_string_lossy().into_owned()
+}
+
 /// Returns the best PhysicalDevice and the index of it's best queue family
 pub(crate) unsafe fn select_physical_device(
     instance: &ash::Instance, 
@@ -83,10 +90,22 @@ unsafe fn score_pdevice_with_capabilities(
         vk::PhysicalDeviceType::CPU            => { -1000 },
         _ => { 0 }
     };
+    // TODO: Score the Queue Families based on capabilities instead of taking the first one
     score += pdevice_properties.limits.max_image_dimension3_d as i32;
     
-    // TODO: Score the Queue Families based on capabilities instead of taking the first one
     let queue_family_index = pdevice_queue_families.first()?.0;
+
+    #[cfg(debug_assertions)] {
+        // GPU  [ID] - [Name] - [Score]
+        let device_name = raw_cstr_to_string(&pdevice_properties.device_name);
+        println!("GPU  [{}] - [{}] - [{}]", &pdevice_properties.device_id, &device_name, &score);          
+
+        // List all family queues that passed the filter
+        for queue_family in &pdevice_queue_families {
+            println!(" |=> [{}] - Max Queues [{:02}] - Flags [{:?}]", queue_family.0, queue_family.1.queue_count, queue_family.1.queue_flags);
+        }
+        println!(""); // Separation between info for different GPUs
+    }
 
     Some((score, queue_family_index))
 }
