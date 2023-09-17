@@ -6,6 +6,7 @@
 cargo-features = ["named-profiles","profile-overrides"]
 
 [workspace]
+resolver = "2"
 members = [
     "lvengine", 
     "test_app",

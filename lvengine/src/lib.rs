@@ -1,9 +1,6 @@
-pub(crate) mod constants;
-pub mod app;
-mod vulkan;
-
-pub use winit;
+use log::*;
 
 pub fn hello() {
-    println!("Hello Workspaces!");
+    info!("Hello LOGs");
+    println!("Hello from lib!");
 }

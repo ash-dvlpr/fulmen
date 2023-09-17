@@ -3,21 +3,16 @@ name = "lvengine"
 authors = ["Xeros08 <42175313+Xeros08@users.noreply.github.com>"]
 version = "0.0.1"
 description = "Rendering Engine made with Vulkan"
-crate-type = ["rlib"]
+crate-type = ["cdylib"]
 edition = "2021"
 
+
+
 [dependencies]
-winit = "0.26.1"
-ash = { version = "0.37.0", default-features = false, features = ["linked"] }
-ash-window = "0.10.0"
+log = "0.4.0"
+
+
+
 
 [features]
-dev_features = ["ash/debug", "validation_layers"]
-
-optional_layers = []
-validation_layers = ["optional_layers"]
-# Vulkan Features should be added as crate features so that the 'LveApplicationBuilder'
-# can enable VK-Features itself if the cargo feature is enabled. 
-
-
 

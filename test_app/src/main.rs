@@ -1,6 +1,10 @@
-use test_app::app::Application;
+mod logging;
+use log::*;
 
 fn main() {
-    let (app, e_loop) = Application::new();
-    app.run(e_loop);
+    logging::init();
+    info!("Hello from Main");
+
+
+    engine::hello();
 }

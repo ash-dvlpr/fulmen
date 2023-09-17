@@ -5,9 +5,14 @@ version = "0.0.1"
 description = "Test app that makes use of the rendering engine"
 edition = "2021"
 
+
+
 [dependencies]
 engine = { package = "lvengine", path = "../lvengine" }
 
+log = "0.4.0"
+env_logger = "0.10.0"
+
+
+
 [features]
-default = ["dev_features"]
-dev_features = ["engine/dev_features"]
