@@ -1,18 +1,48 @@
 [package]
 name = "test_app"
-authors = ["Xeros08 <42175313+Xeros08@users.noreply.github.com>"]
 version = "0.0.1"
 description = "Test app that makes use of the rendering engine"
+authors = ["Xeros08 <42175313+Xeros08@users.noreply.github.com>"]
 edition = "2021"
 
-
-
 [dependencies]
-engine = { package = "lvengine", path = "../lvengine" }
-
 log = "0.4.0"
-env_logger = "0.10.0"
 
 
+# My Engine
+[dependencies.engine]
+package = "lvengine"
+path = "../lvengine"
+features = [
+    "logging"
+]
 
+
+# Other
+
+# Other
 [features]
+
+
+[profile.dev]
+debug = false
+debug-assertions = true
+lto = false # Faster linking, worse optimizations
+incremental = true # Better re-compilation times
+codegen-units = 16 # Same as non incremental builds
+overflow-checks = true
+panic = 'unwind'
+[profile.dev.package."*"]
+opt-level = 3
+
+# Profile in case 'dev' doesn't have enough debug info
+[profile.devinfo]
+inherits = 'dev'
+debug = true
+
+[profile.release]
+opt-level = 3
+debug = false
+debug-assertions = false
+lto = true
+incremental = false

@@ -1,10 +1,6 @@
-mod logging;
-use log::*;
+use engine::prelude::*;
 
 fn main() {
-    logging::init();
-    info!("Hello from Main");
-
-
-    engine::hello();
+    App::new()
+        .run();
 }

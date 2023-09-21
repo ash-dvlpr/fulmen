@@ -1,18 +1,32 @@
 [package]
 name = "lvengine"
-authors = ["Xeros08 <42175313+Xeros08@users.noreply.github.com>"]
 version = "0.0.1"
 description = "Rendering Engine made with Vulkan"
-crate-type = ["cdylib"]
+crate-type = ["lib"]
 edition = "2021"
 
+authors = ["Xeros08 <42175313+Xeros08@users.noreply.github.com>"]
+
+
+
+[workspace]
+resolver = "2"
+members = [
+    "modules/*"
+]
 
 
 [dependencies]
-log = "0.4.0"
+# Engine Modules
+core = { path = "modules/core" }
+logging = { path = "modules/logging", optional = true }
 
+# Other
+#log = "0.4.0"
+#glfw = { version = "0.53.0", features = ["vulkan"] }
 
 
 
 [features]
+logging = ["dep:logging", "core/logging"]
 
