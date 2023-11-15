@@ -1,5 +1,5 @@
 [package]
-name = "lvengine"
+name = "fulmen"
 version = "0.0.1"
 description = "Rendering Engine made with Vulkan"
 crate-type = ["lib"]
@@ -19,6 +19,7 @@ members = [
 [dependencies]
 # Engine Modules
 core = { path = "modules/core" }
+renderer = { path = "modules/renderer" }
 logging = { path = "modules/logging", optional = true }
 
 # Other

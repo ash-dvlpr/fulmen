@@ -11,8 +11,8 @@ log = "0.4.0"
 
 # My Engine
 [dependencies.engine]
-package = "lvengine"
-path = "../lvengine"
+package = "fulmen"
+path = "../fulmen"
 features = [
     "logging"
 ]
@@ -29,11 +29,12 @@ debug = false
 debug-assertions = true
 lto = false # Faster linking, worse optimizations
 incremental = true # Better re-compilation times
-codegen-units = 16 # Same as non incremental builds
+codegen-units = 32 # Same as non incremental builds
 overflow-checks = true
 panic = 'unwind'
 [profile.dev.package."*"]
 opt-level = 3
+incremental = false
 
 # Profile in case 'dev' doesn't have enough debug info
 [profile.devinfo]

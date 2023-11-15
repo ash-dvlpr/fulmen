@@ -1,5 +1,5 @@
-# Rust Light Vulkan Engine (lvengine)
-This is my Vulkan Game Engine pet project for learning purposes.
+# Fulmen
+A Vulkan Game Engine written in Rust. This is a pet project of mine for learning purposes.
 
 Inspired by both the [Hazel](https://github.com/TheCherno/Hazel) and [Kohi](https://github.com/travisvroman/kohi) game engine projects.
 
