@@ -6,6 +6,7 @@ authors = ["Xeros08 <42175313+Xeros08@users.noreply.github.com>"]
 edition = "2021"
 
 [dependencies]
+env_logger = "0.11.4"
 log = "0.4.0"
 
 
@@ -13,8 +14,9 @@ log = "0.4.0"
 [dependencies.engine]
 package = "fulmen"
 path = "../fulmen"
+default-features = false
 features = [
-    "logging"
+    "logging", "rendering", "debug"
 ]
 
 

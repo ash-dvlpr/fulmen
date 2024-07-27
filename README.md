@@ -20,7 +20,7 @@ The other part is the game/application/visualizer, that makes use of the "engine
 
 ## Custom Profiles
 - `dev` | customized for optimized dependencies, incremental builds and no debug symbols (debug-assertions still on).
-- `release` | maximizes for optimizations, disenables `lto`.
+- `release` | maximizes for optimizations, disables `lto`s.
 - `devinfo` | `dev` profile with debug-symbols.
 
 

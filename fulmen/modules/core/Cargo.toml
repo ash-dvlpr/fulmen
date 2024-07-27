@@ -7,13 +7,14 @@ edition = "2021"
 
 [dependencies]
 # Modules
-logging = { path = "../logging", optional = true }
 renderer = { path = "../renderer", optional = true }
 
 # Other
-
+log = { version = ">=0.4", optional = true }
 
 
 
 [features]
-logging = ["dep:logging"]
+logging = ["dep:log"]
+rendering = ["dep:renderer"]
+debug = ["logging", "renderer/debug"]

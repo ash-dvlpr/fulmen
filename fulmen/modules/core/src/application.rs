@@ -1,4 +1,4 @@
-use renderer::VulkanRenderer;
+use renderer::prelude::*;
 
 #[derive(Default)]
 pub struct AppInfo {
@@ -11,17 +11,17 @@ pub struct AppInfo {
 pub struct App {
     appinfo: AppInfo,
     // scene: Scene // Holds entities
-    renderer: VulkanRenderer // Handles rendering
-}
+    // systems
+    // components
 
+    // renderer may be optional if building the engine without a render feature
+    #[cfg(feature = "rendering")]
+    renderer: Option<VulkanRenderer>, // Handles rendering
+}
 
 impl App {
     pub fn new() -> Self {
-        Self {
-            // TODO: Fix
-            renderer: VulkanRenderer::new(),
-            ..App::default()
-        }
+        Self::default()
     }
 
     pub fn with_app_name(&mut self, name: &str) -> &mut Self {
@@ -29,7 +29,7 @@ impl App {
         self
     }
 
-    pub fn with_resizable_window(&mut  self, resizable: bool) -> &mut Self {
+    pub fn with_resizable_window(&mut self, resizable: bool) -> &mut Self {
         self.appinfo.resizable_window = resizable;
         self
     }
@@ -37,11 +37,13 @@ impl App {
     pub fn run(&mut self) {
         // TODO: Init logger
         // TODO: Start event loop
+
+        // Initialize renderer
+        #[cfg(feature = "rendering")]
+        {
+            self.renderer = Some(VulkanRenderer::new());
+        }
+
         println!("ENGINE RUN");
     }
 }
-
-
-
-
-    

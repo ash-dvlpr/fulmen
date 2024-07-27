@@ -8,26 +8,25 @@ edition = "2021"
 authors = ["Xeros08 <42175313+Xeros08@users.noreply.github.com>"]
 
 
-
 [workspace]
 resolver = "2"
-members = [
-    "modules/*"
-]
+members = ["modules/*"]
 
 
 [dependencies]
 # Engine Modules
 core = { path = "modules/core" }
-renderer = { path = "modules/renderer" }
-logging = { path = "modules/logging", optional = true }
+# renderer = { path = "modules/renderer", optional = true }
+# logging = { path = "modules/logging", optional = true }
 
 # Other
 #log = "0.4.0"
 #glfw = { version = "0.53.0", features = ["vulkan"] }
 
 
-
 [features]
-logging = ["dep:logging", "core/logging"]
+default = ["rendering"]
 
+logging = ["core/logging"]
+rendering = ["core/rendering"]
+debug = ["logging", "core/debug"]
