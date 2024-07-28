@@ -9,6 +9,7 @@ edition = "2021"
 # Modules
 
 # Other
+thiserror = { version = ">=1.0.60" }
 log = { version = ">=0.4", optional = true }
 ash = { version = "0.38.0", default-features = false, features = [
     "std",
@@ -19,5 +20,5 @@ ash = { version = "0.38.0", default-features = false, features = [
 [features]
 logging = ["dep:log"]
 vk_validation = ["logging", "ash/debug"]
-additional_logging = ["logging"]
-debug = ["additional_logging", "vk_validation"]
+trace_logging = ["logging"]
+debug = ["trace_logging", "vk_validation"]

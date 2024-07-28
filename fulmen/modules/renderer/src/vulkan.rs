@@ -1,14 +1,24 @@
-use ash::{self, ext::debug_utils, vk};
+use crate::Result;
+
 use std::ffi;
 use std::os::raw;
 
 #[cfg(feature = "logging")]
 use log::*;
 
+#[cfg(feature = "vk_validation")]
+use ash::ext::debug_utils;
+use ash::{self, vk};
+
 pub struct VulkanRenderer {
     entry: ash::Entry,
     instance: ash::Instance,
 
+    // Handles vulkan instaces, debug messengers, surfaces
+    // and picking physical devices, logical devices and command pools
+    // vk_device: FVkDevice,
+
+    // vk_pipeline: FVkPipeline,
     #[cfg(feature = "vk_validation")]
     debug_utils_loader: debug_utils::Instance,
     #[cfg(feature = "vk_validation")]
@@ -63,13 +73,31 @@ impl Drop for VulkanRenderer {
 }
 
 impl VulkanRenderer {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self> {
+        #[cfg(feature = "trace_logging")]
+        trace!("Loading the Vulkan Loader (ash::Entry)");
+
         // ? Load the Ash Vulkan wrapper
         let entry = ash::Entry::linked();
 
         // AppInfo
-        let app_name = ffi::CString::new("Fulmen App").unwrap();
+        #[cfg(feature = "trace_logging")]
+        trace!("Creating the VkApplicationInfo");
+
         let engine_name = ffi::CString::new("Fulmen").unwrap();
+        let app_name = {
+            let name = "Fulmen app";
+
+            let result = ffi::CString::new(name);
+            if let Err(_) = result {
+                #[cfg(feature = "logging")]
+                error!("Invalid app name. Should not contain any interior nul bytes: `{name:?}`");
+
+                Err(crate::Error::InvalidAppName(name.to_owned()))
+            } else {
+                Ok(result.unwrap())
+            }
+        }?;
 
         let app_info = vk::ApplicationInfo::default()
             // TODO: configurable app name + version
@@ -77,22 +105,30 @@ impl VulkanRenderer {
             .application_version(vk::make_api_version(0, 0, 0, 1))
             .engine_name(engine_name.as_c_str())
             .engine_version(vk::make_api_version(0, 0, 0, 1))
-            .api_version(vk::API_VERSION_1_3);
+            .api_version(vk::API_VERSION_1_2);
 
         // InstanceCreateInfo
+        #[cfg(feature = "trace_logging")]
+        trace!("Creating the the VkInstanceCreateInfo");
+
         let mut instance_create_info =
             vk::InstanceCreateInfo::default().application_info(&app_info);
 
         // ? Enumerate and enable the required extensions and layers
+        #[cfg(feature = "trace_logging")]
+        trace!("Enumerating required vulkan layers and extensions...");
+
         let mut selected_extensions: Vec<*const raw::c_char> = vec![];
         let mut selected_layers: Vec<*const raw::c_char> = vec![];
 
         // Debug Utils Messenger
         #[cfg(feature = "vk_validation")]
         {
+            #[cfg(feature = "trace_logging")]
+            trace!("Enabling vulkan validation layers and required extensions");
+
             // Required extensions and layers
-            use crate::vulkan::vk::EXT_DEBUG_UTILS_NAME;
-            selected_extensions.push(EXT_DEBUG_UTILS_NAME.as_ptr());
+            selected_extensions.push(ash::vk::EXT_DEBUG_UTILS_NAME.as_ptr());
             selected_layers.push(vk_layer_khronos_validation().as_ptr());
 
             // You could extend the InstanceCreateInfo with the DebugUtilsMessengerCreateInfo
@@ -100,8 +136,19 @@ impl VulkanRenderer {
             // instance_create_info = instance_create_info.push_next(&mut debug_create_info);
         };
 
-        // Select optional extensions based on context
-        // TODO: MacOS specific extensions (+create_info.flags(vk::InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR))
+        //? Select optional extensions based on context
+        // MacOS specific extensions
+        // #[cfg(any(target_os = "macos", target_os = "ios"))]
+        // {
+        //     selected_extensions.push(ash::khr::portability_enumeration::NAME.as_ptr());
+        //     selected_extensions.push(ash::khr::get_physical_device_properties2::NAME.as_ptr());
+
+        //     instance_create_info =
+        //         instance_create_info.flags(vk::InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR);
+
+        //     // TODO: add the ash::khr::portability_subset::NAME to the device_extension_names on the VkDeviceCreateInfo
+        // }
+
         // TODO: Window's required extensions
         // ash_window::enumerate_required_extensions(window_handle)?.iter()
         //         .for_each(|ext: &*const raw::c_char| {
@@ -114,7 +161,9 @@ impl VulkanRenderer {
             .enabled_extension_names(&selected_extensions);
 
         // ? Create the Instance
-        let instance = unsafe { entry.create_instance(&instance_create_info, None).unwrap() };
+        #[cfg(feature = "trace_logging")]
+        trace!("Creating the Vulkan Instance (ash::instance::Instance)");
+        let instance = unsafe { entry.create_instance(&instance_create_info, None) }?;
 
         // ? Debug Utils
         #[cfg(feature = "vk_validation")]
@@ -139,16 +188,14 @@ impl VulkanRenderer {
 
             debug_utils_loader = debug_utils::Instance::new(&entry, &instance);
             debug_callback = unsafe {
-                debug_utils_loader
-                    .create_debug_utils_messenger(&debug_create_info, None)
-                    .unwrap()
+                debug_utils_loader.create_debug_utils_messenger(&debug_create_info, None)?
             };
         };
 
         // ? Create Window Surface
 
-        // Return
-        Self {
+        // Returnw
+        Ok(Self {
             entry,
             instance,
 
@@ -156,7 +203,7 @@ impl VulkanRenderer {
             debug_utils_loader,
             #[cfg(feature = "vk_validation")]
             debug_callback,
-        }
+        })
     }
 }
 

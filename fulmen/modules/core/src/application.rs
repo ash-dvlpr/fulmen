@@ -1,4 +1,7 @@
-use renderer::prelude::*;
+use renderer::*;
+
+#[cfg(feature = "logging")]
+use log::*;
 
 #[derive(Default)]
 pub struct AppInfo {
@@ -35,15 +38,15 @@ impl App {
     }
 
     pub fn run(&mut self) {
-        // TODO: Init logger
         // TODO: Start event loop
 
         // Initialize renderer
         #[cfg(feature = "rendering")]
         {
-            self.renderer = Some(VulkanRenderer::new());
-        }
+            #[cfg(feature = "logging")]
+            info!("Initializing renderer");
 
-        println!("ENGINE RUN");
+            self.renderer = Some(VulkanRenderer::new().unwrap());
+        }
     }
 }

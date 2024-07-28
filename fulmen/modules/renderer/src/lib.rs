@@ -1,7 +1,7 @@
+// --- Modules
+mod error;
 mod vulkan;
 
-pub mod prelude {
-    pub use crate::vulkan::VulkanRenderer;
-}
-
-
+// --- API Flattening
+pub use error::{Error, Result};
+pub use vulkan::VulkanRenderer;
