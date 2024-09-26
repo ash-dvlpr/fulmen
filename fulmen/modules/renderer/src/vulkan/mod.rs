@@ -1,14 +1,19 @@
-use crate::Result;
+mod device;
+mod error;
 
+// --- std
 use std::ffi;
 use std::os::raw;
 
-#[cfg(feature = "logging")]
-use log::*;
-
+// --- vulkan
 #[cfg(feature = "vk_validation")]
 use ash::ext::debug_utils;
 use ash::{self, vk};
+
+// --- logging and error handling
+pub use error::{Error, Result};
+#[cfg(feature = "logging")]
+use log::*;
 
 pub struct VulkanRenderer {
     entry: ash::Entry,
@@ -17,7 +22,6 @@ pub struct VulkanRenderer {
     // Handles vulkan instaces, debug messengers, surfaces
     // and picking physical devices, logical devices and command pools
     // vk_device: FVkDevice,
-
     // vk_pipeline: FVkPipeline,
     #[cfg(feature = "vk_validation")]
     debug_utils_loader: debug_utils::Instance,
@@ -28,22 +32,31 @@ pub struct VulkanRenderer {
 impl Drop for VulkanRenderer {
     // Clean up vulkan resources in reverse initialization order.
     fn drop(&mut self) {
+        #[cfg(feature = "logging")]
+        info!("Dropping VulkanRenderer");
+
         unsafe {
             // TODO:
 
             // TODO: Cleaunp
             #[cfg(feature = "vk_validation")]
             {
+                #[cfg(feature = "trace_logging")]
+                trace!("- Destroying the Debug Utils Messenger");
+
                 self.debug_utils_loader
                     .destroy_debug_utils_messenger(self.debug_callback, None);
             }
 
+            #[cfg(feature = "trace_logging")]
+            trace!("- Destroying Vulkan Instance (ash::instance::Instance)");
             self.instance.destroy_instance(None);
         }
     }
 
     // fn drop(&mut self) {
     //     unsafe {
+
     //         self.device.device_wait_idle().unwrap();
     //         self.device
     //             .destroy_semaphore(self.present_complete_semaphore, None);
@@ -74,15 +87,17 @@ impl Drop for VulkanRenderer {
 
 impl VulkanRenderer {
     pub fn new() -> Result<Self> {
+        #[cfg(feature = "logging")]
+        info!("Creating VulkanRenderer");
         #[cfg(feature = "trace_logging")]
-        trace!("Loading the Vulkan Loader (ash::Entry)");
+        trace!("- Loading the Vulkan Loader (ash::Entry)");
 
         // ? Load the Ash Vulkan wrapper
         let entry = ash::Entry::linked();
 
         // AppInfo
-        #[cfg(feature = "trace_logging")]
-        trace!("Creating the VkApplicationInfo");
+        #[cfg(feature = "logging")]
+        trace!("- Creating the VkApplicationInfo");
 
         let engine_name = ffi::CString::new("Fulmen").unwrap();
         let app_name = {
@@ -90,10 +105,7 @@ impl VulkanRenderer {
 
             let result = ffi::CString::new(name);
             if let Err(_) = result {
-                #[cfg(feature = "logging")]
-                error!("Invalid app name. Should not contain any interior nul bytes: `{name:?}`");
-
-                Err(crate::Error::InvalidAppName(name.to_owned()))
+                Err(Error::InvalidAppName(name.to_owned()))
             } else {
                 Ok(result.unwrap())
             }
@@ -109,23 +121,25 @@ impl VulkanRenderer {
 
         // InstanceCreateInfo
         #[cfg(feature = "trace_logging")]
-        trace!("Creating the the VkInstanceCreateInfo");
+        trace!("- Creating the the VkInstanceCreateInfo");
 
         let mut instance_create_info =
             vk::InstanceCreateInfo::default().application_info(&app_info);
 
         // ? Enumerate and enable the required extensions and layers
         #[cfg(feature = "trace_logging")]
-        trace!("Enumerating required vulkan layers and extensions...");
+        trace!("- Enumerating required Vulkan Layers and Instance Extensions...");
 
+        #[allow(unused_mut)]
         let mut selected_extensions: Vec<*const raw::c_char> = vec![];
+        #[allow(unused_mut)]
         let mut selected_layers: Vec<*const raw::c_char> = vec![];
 
-        // Debug Utils Messenger
+        // Required extensions and layers for the Debug Utils Messenger
         #[cfg(feature = "vk_validation")]
         {
             #[cfg(feature = "trace_logging")]
-            trace!("Enabling vulkan validation layers and required extensions");
+            trace!("- Enabling Vulkan validation layers");
 
             // Required extensions and layers
             selected_extensions.push(ash::vk::EXT_DEBUG_UTILS_NAME.as_ptr());
@@ -162,7 +176,7 @@ impl VulkanRenderer {
 
         // ? Create the Instance
         #[cfg(feature = "trace_logging")]
-        trace!("Creating the Vulkan Instance (ash::instance::Instance)");
+        trace!("- Creating the Vulkan Instance (ash::instance::Instance)");
         let instance = unsafe { entry.create_instance(&instance_create_info, None) }?;
 
         // ? Debug Utils
@@ -172,6 +186,8 @@ impl VulkanRenderer {
         let debug_callback;
         #[cfg(feature = "vk_validation")]
         {
+            #[cfg(feature = "trace_logging")]
+            trace!("- Creating the VkDebugUtilsMessengerCreateInfoEXT");
             let debug_create_info = vk::DebugUtilsMessengerCreateInfoEXT::default()
                 .message_severity(
                     vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
@@ -186,6 +202,8 @@ impl VulkanRenderer {
                 )
                 .pfn_user_callback(Some(vk_validation_debug_utils_callback));
 
+            #[cfg(feature = "trace_logging")]
+            trace!("- Loading the DebugUtils Ext Loader (debug_utils::Instance) and creating the Debug Utils Messenger");
             debug_utils_loader = debug_utils::Instance::new(&entry, &instance);
             debug_callback = unsafe {
                 debug_utils_loader.create_debug_utils_messenger(&debug_create_info, None)?
@@ -194,7 +212,9 @@ impl VulkanRenderer {
 
         // ? Create Window Surface
 
-        // Returnw
+        // ? Create SwapChain
+
+        // Return
         Ok(Self {
             entry,
             instance,

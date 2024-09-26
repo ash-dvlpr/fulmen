@@ -9,13 +9,24 @@ edition = "2021"
 # Modules
 renderer = { path = "../renderer", optional = true }
 
+# Graphics
+winit = { version = "0.30", optional = true, default-features = false, features = [
+    "rwh_06",
+] }
+
 # Other
 thiserror = { version = ">=1.0.60" }
 log = { version = ">=0.4", optional = true }
-
+# ahash = { version = "0.8.7", default-features = false, features = [
+#     "runtime-rng",
+# ] }
 
 
 [features]
+rendering = ["dep:renderer", "dep:winit"]
+# x11 = ["rendering", "winit/x11"]
+# wayland = ["rendering", "winit/wayland"]
+
 logging = ["dep:log", "renderer/logging"]
-rendering = ["dep:renderer"]
+trace_logging = ["logging"]
 debug = ["logging", "renderer/debug"]

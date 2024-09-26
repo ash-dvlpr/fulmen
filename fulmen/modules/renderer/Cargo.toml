@@ -19,6 +19,6 @@ ash = { version = "0.38.0", default-features = false, features = [
 
 [features]
 logging = ["dep:log"]
-vk_validation = ["logging", "ash/debug"]
 trace_logging = ["logging"]
+vk_validation = ["logging", "ash/debug"]
 debug = ["trace_logging", "vk_validation"]

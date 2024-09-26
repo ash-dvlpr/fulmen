@@ -1,7 +1,8 @@
-use renderer::*;
 
 #[cfg(feature = "logging")]
 use log::*;
+#[cfg(feature = "rendering")]
+use renderer::*;
 
 #[derive(Default)]
 pub struct AppInfo {
@@ -13,9 +14,10 @@ pub struct AppInfo {
 #[derive(Default)]
 pub struct App {
     appinfo: AppInfo,
-    // scene: Scene // Holds entities
-    // systems
-    // components
+
+    // world: ECS world
+    // resources: ECS resources
+    // plugins: App plugins
 
     // renderer may be optional if building the engine without a render feature
     #[cfg(feature = "rendering")]
@@ -38,6 +40,9 @@ impl App {
     }
 
     pub fn run(&mut self) {
+        #[cfg(feature = "logging")]
+        info!("Running Application");
+
         // TODO: Start event loop
 
         // Initialize renderer
@@ -46,7 +51,15 @@ impl App {
             #[cfg(feature = "logging")]
             info!("Initializing renderer");
 
-            self.renderer = Some(VulkanRenderer::new().unwrap());
+            let _result = VulkanRenderer::new();
+            self.renderer = if let Err(_error) = _result {
+                #[cfg(feature = "logging")]
+                error!("- {}", _error);
+
+                None
+            } else {
+                _result.ok()
+            };
         }
     }
 }

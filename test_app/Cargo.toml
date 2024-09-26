@@ -6,32 +6,29 @@ authors = ["Xeros08 <42175313+Xeros08@users.noreply.github.com>"]
 edition = "2021"
 
 [dependencies]
+# Logging
 env_logger = "0.11.4"
 log = "0.4.0"
-
 
 # My Engine
 [dependencies.engine]
 package = "fulmen"
 path = "../fulmen"
 default-features = false
-features = [
-    "logging", "rendering", "debug"
-]
-
+features = ["logging", "rendering", "debug", "trace_logging"]
 
 # Other
 
-# Other
+
 [features]
 
 
 [profile.dev]
 debug = false
 debug-assertions = true
-lto = false # Faster linking, worse optimizations
-incremental = true # Better re-compilation times
-codegen-units = 32 # Same as non incremental builds
+lto = false             # Faster linking, worse optimizations
+incremental = true      # Better re-compilation times
+codegen-units = 32      # Same as non incremental builds
 overflow-checks = true
 panic = 'unwind'
 [profile.dev.package."*"]
