@@ -15,7 +15,7 @@ log = "0.4.0"
 package = "fulmen"
 path = "../fulmen"
 default-features = false
-features = ["logging", "rendering", "debug", "trace_logging"]
+features = ["rendering", "logging", "debug_logging"]
 
 # Other
 

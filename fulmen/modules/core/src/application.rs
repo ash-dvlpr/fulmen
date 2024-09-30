@@ -55,7 +55,7 @@ impl App {
         // Initialize renderer
         #[cfg(feature = "rendering")]
         {
-            #[cfg(feature = "trace_logging")]
+            #[cfg(feature = "debug_logging")]
             trace!("- Trying to build EventLoop");
             // let _result = build_event_loop::<()>().build();
             self.event_loop = match build_event_loop::<()>().build() {

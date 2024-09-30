@@ -22,7 +22,7 @@ ash-window = "0.13"
 
 
 [features]
-logging = ["dep:log"]
-trace_logging = ["logging"]
 vk_validation = ["logging", "ash/debug"]
-debug = ["trace_logging", "vk_validation"]
+
+logging = ["dep:log"]
+debug_logging = ["logging", "vk_validation"]

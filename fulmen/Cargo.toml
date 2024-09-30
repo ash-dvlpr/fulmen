@@ -27,7 +27,6 @@ core = { path = "modules/core" }
 [features]
 default = ["rendering"]
 
-logging = ["core/logging"]
-trace_logging = ["core/trace_logging"]
 rendering = ["core/rendering"]
-debug = ["logging", "core/debug", "core/trace_logging"]
+logging = ["core/logging"]
+debug_logging = ["core/debug_logging"]

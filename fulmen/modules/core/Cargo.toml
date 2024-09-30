@@ -28,5 +28,4 @@ rendering = ["dep:renderer", "dep:winit"]
 # wayland = ["rendering", "winit/wayland"]
 
 logging = ["dep:log", "renderer/logging"]
-trace_logging = ["logging"]
-debug = ["logging", "renderer/debug"]
+debug_logging = ["logging", "renderer/debug_logging"]

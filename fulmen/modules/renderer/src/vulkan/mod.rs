@@ -41,14 +41,14 @@ impl Drop for VulkanRenderer {
             // TODO: Cleaunp
             #[cfg(feature = "vk_validation")]
             {
-                #[cfg(feature = "trace_logging")]
+                #[cfg(feature = "debug_logging")]
                 trace!("- Destroying the Debug Utils Messenger");
 
                 self.debug_utils_loader
                     .destroy_debug_utils_messenger(self.debug_callback, None);
             }
 
-            #[cfg(feature = "trace_logging")]
+            #[cfg(feature = "debug_logging")]
             trace!("- Destroying Vulkan Instance (ash::instance::Instance)");
             self.instance.destroy_instance(None);
         }
@@ -89,7 +89,7 @@ impl VulkanRenderer {
     pub fn new() -> Result<Self> {
         #[cfg(feature = "logging")]
         info!("Creating VulkanRenderer");
-        #[cfg(feature = "trace_logging")]
+        #[cfg(feature = "debug_logging")]
         trace!("- Loading the Vulkan Loader (ash::Entry)");
 
         // ? Load the Ash Vulkan wrapper
@@ -120,14 +120,14 @@ impl VulkanRenderer {
             .api_version(vk::API_VERSION_1_2);
 
         // InstanceCreateInfo
-        #[cfg(feature = "trace_logging")]
+        #[cfg(feature = "debug_logging")]
         trace!("- Creating the the VkInstanceCreateInfo");
 
         let mut instance_create_info =
             vk::InstanceCreateInfo::default().application_info(&app_info);
 
         // ? Enumerate and enable the required extensions and layers
-        #[cfg(feature = "trace_logging")]
+        #[cfg(feature = "debug_logging")]
         trace!("- Enumerating required Vulkan Layers and Instance Extensions...");
 
         #[allow(unused_mut)]
@@ -138,7 +138,7 @@ impl VulkanRenderer {
         // Required extensions and layers for the Debug Utils Messenger
         #[cfg(feature = "vk_validation")]
         {
-            #[cfg(feature = "trace_logging")]
+            #[cfg(feature = "debug_logging")]
             trace!("- Enabling Vulkan validation layers");
 
             // Required extensions and layers
@@ -175,7 +175,7 @@ impl VulkanRenderer {
             .enabled_extension_names(&selected_extensions);
 
         // ? Create the Instance
-        #[cfg(feature = "trace_logging")]
+        #[cfg(feature = "debug_logging")]
         trace!("- Creating the Vulkan Instance (ash::instance::Instance)");
         let instance = unsafe { entry.create_instance(&instance_create_info, None) }?;
 
@@ -186,7 +186,7 @@ impl VulkanRenderer {
         let debug_callback;
         #[cfg(feature = "vk_validation")]
         {
-            #[cfg(feature = "trace_logging")]
+            #[cfg(feature = "debug_logging")]
             trace!("- Creating the VkDebugUtilsMessengerCreateInfoEXT");
             let debug_create_info = vk::DebugUtilsMessengerCreateInfoEXT::default()
                 .message_severity(
@@ -202,7 +202,7 @@ impl VulkanRenderer {
                 )
                 .pfn_user_callback(Some(vk_validation_debug_utils_callback));
 
-            #[cfg(feature = "trace_logging")]
+            #[cfg(feature = "debug_logging")]
             trace!("- Loading the DebugUtils Ext Loader (debug_utils::Instance) and creating the Debug Utils Messenger");
             debug_utils_loader = debug_utils::Instance::new(&entry, &instance);
             debug_callback = unsafe {
