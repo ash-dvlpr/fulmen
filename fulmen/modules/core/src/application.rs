@@ -1,8 +1,15 @@
+// --- std
+use std::rc::Rc;
 
+// --- logging and error handling
 #[cfg(feature = "logging")]
 use log::*;
+
+// --- rendering
 #[cfg(feature = "rendering")]
 use renderer::*;
+#[cfg(feature = "rendering")]
+use winit::event_loop::{EventLoop, EventLoopBuilder};
 
 #[derive(Default)]
 pub struct AppInfo {
@@ -22,6 +29,8 @@ pub struct App {
     // renderer may be optional if building the engine without a render feature
     #[cfg(feature = "rendering")]
     renderer: Option<VulkanRenderer>, // Handles rendering
+    #[cfg(feature = "rendering")]
+    event_loop: Option<Rc<EventLoop<()>>>, // Used for
 }
 
 impl App {
@@ -43,13 +52,21 @@ impl App {
         #[cfg(feature = "logging")]
         info!("Running Application");
 
-        // TODO: Start event loop
-
         // Initialize renderer
         #[cfg(feature = "rendering")]
         {
-            #[cfg(feature = "logging")]
-            info!("Initializing renderer");
+            #[cfg(feature = "trace_logging")]
+            trace!("- Trying to build EventLoop");
+            // let _result = build_event_loop::<()>().build();
+            self.event_loop = match build_event_loop::<()>().build() {
+                Ok(_loop) => Some(Rc::new(_loop)),
+                Err(_error) => {
+                    #[cfg(feature = "logging")]
+                    error!("- {}", _error);
+                    None
+                }
+            };
+
 
             let _result = VulkanRenderer::new();
             self.renderer = if let Err(_error) = _result {
@@ -61,5 +78,22 @@ impl App {
                 _result.ok()
             };
         }
+
+        // TODO: Start event loop
     }
+}
+
+fn build_event_loop<T>() -> EventLoopBuilder<T> {
+    #[allow(unused_mut)]
+    let mut event_loop_builder = EventLoop::<T>::with_user_event();
+
+    // TODO: Maybe need to set up some stuff using one of these extensions:
+    // use winit::platform::x11::EventLoopBuilderExtX11;
+    // use winit::platform::wayland::EventLoopBuilderExtWayland;
+    // use winit::platform::windows::EventLoopBuilderExtWindows;
+
+    // NOTE: There are also Window extensions
+    // use winit::platform::windows::WindowAttributesExtWindows;
+
+    event_loop_builder
 }

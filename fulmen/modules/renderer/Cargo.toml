@@ -11,10 +11,14 @@ edition = "2021"
 # Other
 thiserror = { version = ">=1.0.60" }
 log = { version = ">=0.4", optional = true }
+
+# Graphics
 ash = { version = "0.38.0", default-features = false, features = [
     "std",
     "linked",
 ] }
+raw-window-handle = "0.6"
+ash-window = "0.13"
 
 
 [features]
