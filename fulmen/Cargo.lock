@@ -291,6 +291,10 @@ dependencies = [
 [[package]]
 name = "fecs"
 version = "0.1.0"
+dependencies = [
+ "log",
+ "thiserror",
+]
 
 [[package]]
 name = "foreign-types"

@@ -9,14 +9,16 @@ edition = "2021"
 # Modules
 renderer = { path = "../renderer", optional = true }
 
+# Logging
+thiserror = { workspace = true }
+log = { workspace = true, optional = true }
+
 # Graphics
 winit = { version = "0.30", optional = true, default-features = false, features = [
     "rwh_06",
 ] }
 
 # Other
-thiserror = { version = ">=1.0.60" }
-log = { version = ">=0.4", optional = true }
 # ahash = { version = "0.8.7", default-features = false, features = [
 #     "runtime-rng",
 # ] }

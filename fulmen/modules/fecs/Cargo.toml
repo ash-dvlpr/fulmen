@@ -1,5 +1,5 @@
 [package]
-name = "renderer"
+name = "fecs"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,17 +12,10 @@ edition = "2021"
 thiserror = { workspace = true }
 log = { workspace = true, optional = true }
 
-# Graphics
-ash = { version = "0.38.0", default-features = false, features = [
-    "std",
-    "linked",
-] }
-raw-window-handle = "0.6"
-ash-window = "0.13"
+# Other
+
 
 
 [features]
-vk_validation = ["logging", "ash/debug"]
-
 logging = ["dep:log"]
-debug_logging = ["logging", "vk_validation"]
+debug_logging = ["logging"]
