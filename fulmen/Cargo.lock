@@ -328,6 +328,7 @@ name = "fulmen"
 version = "0.0.1"
 dependencies = [
  "core",
+ "fecs",
 ]
 
 [[package]]
