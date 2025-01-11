@@ -1,24 +1,34 @@
+use super::UnsafeBlob;
 use crate::{Error, Result};
 
-use core::{alloc::Layout, marker::PhantomData, mem, ptr::NonNull, slice};
+use core::{alloc::Layout, marker::PhantomData, mem, ptr::{self, NonNull}, slice};
 
+
+/// Type erased data storage.
 pub struct Blob {
     data: Option<NonNull<u8>>,
-    layout: Layout,
+    pub(crate) drop_fn: Option<unsafe fn(*mut u8)>,
+    item_layout: Layout,
     _marker: PhantomData<u8>,
 }
 
 impl Blob {
+    const SIZE: usize = 1;
+
     /// # Safety
     /// The type `T` doesn't implement `Drop`.
     #[inline]
     pub const fn new<T: Sized>() -> Result<Blob> {
-        if mem::needs_drop::<T>() {
-            return Err(Error::CantDropType);
+        let layout = Layout::new::<T>();
+        let mut blob = Self::with_layout(layout);
+
+        if mem::needs_drop::<T>() && blob.is_ok() {
+           &blob.unwrap().drop_fn = Some(
+                ptr::drop_in_place::<T>
+           );
         }
 
-        let layout = Layout::new::<T>();
-        Self::with_layout(layout)
+        blob
     }
 
     /// # Safety
@@ -26,7 +36,8 @@ impl Blob {
     #[inline]
     pub const unsafe fn new_unchecked<T: Sized>() -> Blob {
         let layout = Layout::new::<T>();
-        Self::with_layout_unchecked(layout)
+        let drop_fn = None;
+        Self::with_layout_unchecked(layout, drop_fn)
     }
 
     #[inline]
@@ -36,18 +47,19 @@ impl Blob {
         }
 
         // TODO: SAFETY: ---
-        Ok(unsafe { Self::with_layout_unchecked(layout) })
+        Ok(unsafe { Self::with_layout_unchecked(layout, None) })
     }
 
     /// # Safety
     /// This function is unsafe as it does not verify the preconditions from [`Blob::with_layout`].
     #[inline]
-    pub const unsafe fn with_layout_unchecked(layout: Layout) -> Blob {
+    pub const unsafe fn with_layout_unchecked(layout: Layout, drop_fn: Option<unsafe fn(*mut u8)>) -> Blob {
         debug_assert!(layout.size() > 0, "Size must be non zero");
 
         Blob {
-            layout,
             data: None,
+            drop_fn: drop_fn,
+            item_layout: layout,
             _marker: PhantomData,
         }
     }
@@ -89,7 +101,7 @@ impl Blob {
         assert!(
             {
                 let _l = Layout::new::<T>();
-                self.layout.size() == _l.size() && self.layout.align() == _l.align()
+                self.item_layout.size() == _l.size() && self.item_layout.align() == _l.align()
             },
             "Layout of values stored on a Blob should match the Blob's layout"
         );
@@ -110,7 +122,7 @@ impl Blob {
         debug_assert!(
             {
                 let _l = Layout::new::<T>();
-                self.layout.size() == _l.size() && self.layout.align() == _l.align()
+                self.item_layout.size() == _l.size() && self.item_layout.align() == _l.align()
             },
             "Layout of values stored on a Blob should match the Blob's layout"
         );
@@ -125,7 +137,7 @@ impl Blob {
     #[inline]
     pub fn replace_bytes(&mut self, source: &[u8]) {
         assert!(
-            self.layout.size() == source.len(),
+            self.item_layout.size() == source.len(),
             "Length of a byte slice being stored on a Blob should match the Blob's layout size"
         );
 
@@ -142,7 +154,7 @@ impl Blob {
     #[inline]
     pub unsafe fn replace_bytes_unchecked(&mut self, source: &[u8]) {
         debug_assert!(
-            self.layout.size() == source.len(),
+            self.item_layout.size() == source.len(),
             "Length of a byte slice being stored on a Blob should match the Blob's layout size"
         );
 
@@ -163,7 +175,7 @@ impl Blob {
         std::ptr::copy_nonoverlapping::<u8>(
             source,
             self.data.unwrap().as_ptr(),
-            self.layout.size(),
+            self.item_layout.size(),
         );
     }
 
@@ -180,7 +192,7 @@ impl Blob {
     /// See [`GlobalAlloc::alloc`].
     #[inline]
     unsafe fn init_unchecked(&mut self) {
-        self.data = Some(Self::create_buffer_unchecked(self.layout));
+        self.data = Some(Self::create_buffer_unchecked(self.item_layout));
     }
 
     /// # Safety
@@ -199,13 +211,13 @@ impl Blob {
 
     #[inline]
     pub fn layout(&self) -> Layout {
-        self.layout
+        self.item_layout
     }
 
     #[inline]
     pub fn bytes(&self) -> &[u8] {
         if let Some(ptr) = self.data {
-            unsafe { slice::from_raw_parts(ptr.as_ptr(), self.layout.size()) }
+            unsafe { slice::from_raw_parts(ptr.as_ptr(), self.item_layout.size()) }
         } else {
             &[]
         }
@@ -214,7 +226,7 @@ impl Blob {
     #[inline]
     pub fn bytes_mut(&mut self) -> &mut [u8] {
         if let Some(ptr) = self.data {
-            unsafe { slice::from_raw_parts_mut(ptr.as_ptr(), self.layout.size()) }
+            unsafe { slice::from_raw_parts_mut(ptr.as_ptr(), self.item_layout.size()) }
         } else {
             &mut []
         }
@@ -224,7 +236,7 @@ impl Blob {
     pub fn downcast<T>(&self) -> Result<&T> {
         if let Some(data) = self.data {
             let t_layout = Layout::new::<T>();
-            if (self.layout.size() == t_layout.size() && self.layout.align() == t_layout.align()) {
+            if (self.item_layout.size() == t_layout.size() && self.item_layout.align() == t_layout.align()) {
                 Ok(unsafe { self.downcast_unchecked() })
             } else {
                 Err(Error::LayoutMistmatch)
@@ -247,8 +259,16 @@ impl Blob {
 impl Drop for Blob {
     fn drop(&mut self) {
         if let Some(ptr) = self.data {
-            unsafe { std::alloc::dealloc(ptr.as_ptr(), self.layout) }
+            if let Some(drop_fn) = self.drop_fn {
+                self.drop_fn = None;
+                unsafe { drop_fn(ptr.as_ptr()); }
+                self.drop_fn = Some(drop_fn);
+            }
+
+            unsafe { std::alloc::dealloc(ptr.as_ptr(), self.item_layout) }
+            self.data = None;
         }
+        self.drop_fn = None;
     }
 }
 

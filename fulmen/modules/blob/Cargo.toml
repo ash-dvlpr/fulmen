@@ -16,3 +16,4 @@ thiserror = { version = ">=1.0.60" }
 # Other
 
 [features]
+default = []
