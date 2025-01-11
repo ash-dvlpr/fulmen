@@ -9,8 +9,10 @@ pub struct Blob {
 }
 
 impl Blob {
+    /// # Safety
+    /// The type `T` doesn't implement `Drop`.
     #[inline]
-    pub const fn new<T: ?Sized + Copy>() -> Result<Blob> {
+    pub const fn new<T: Sized>() -> Result<Blob> {
         if mem::needs_drop::<T>() {
             return Err(Error::CantDropType);
         }
@@ -20,7 +22,7 @@ impl Blob {
     }
 
     /// # Safety
-    /// - Make sure the layout size for T is `> 0` and type T doesn't implement Drop, or you handle it elsewere.
+    /// This function is unsafe as it does not verify the preconditions from [`Blob::new`].
     #[inline]
     pub const unsafe fn new_unchecked<T: Sized>() -> Blob {
         let layout = Layout::new::<T>();
@@ -33,19 +35,15 @@ impl Blob {
             return Err(Error::ZeroSizedLayout);
         }
 
+        // TODO: SAFETY: ---
         Ok(unsafe { Self::with_layout_unchecked(layout) })
     }
 
     /// # Safety
-    /// - Make sure `layout.size` > 0 and is propperly aligned
+    /// This function is unsafe as it does not verify the preconditions from [`Blob::with_layout`].
     #[inline]
     pub const unsafe fn with_layout_unchecked(layout: Layout) -> Blob {
         debug_assert!(layout.size() > 0, "Size must be non zero");
-        debug_assert!(layout.align() > 0, "Alignment must be non zero");
-        debug_assert!(
-            layout.align().is_power_of_two(),
-            "Alignment must be a power of two"
-        );
 
         Blob {
             layout,
@@ -54,14 +52,14 @@ impl Blob {
         }
     }
 
-    pub fn from<T: ?Sized + Copy>(value: T) -> Result<Blob> {
+    pub fn from<T: Sized>(value: T) -> Result<Blob> {
         let mut blob = Self::new::<T>()?;
 
         unsafe {
             // SAFETY: We just checked for zero sized layouts on `new()`.
             blob.init_unchecked();
             // SAFETY: We assume we got passed a valid reference
-            blob.replace_bytes_unchecked(&value as *const _ as *const u8);
+            blob.replace_bytes_unchecked_internal(&value as *const _ as *const u8);
         }
 
         Ok(blob)
@@ -76,10 +74,10 @@ impl Blob {
 
         let mut blob = Self::with_layout(layout)?;
         unsafe {
-            // SAFETY: We just checked for zero sized layouts on `new()`.
+            // SAFETY: We just checked for zero sized layouts on `with_layout()`.
             blob.init_unchecked();
             // SAFETY: We assume we got passed a valid reference
-            blob.replace_bytes_unchecked(bytes.as_ptr());
+            blob.replace_bytes_unchecked(bytes);
         }
 
         Ok(blob)
@@ -87,36 +85,95 @@ impl Blob {
 
     // TODO: fn from_bytes_unchecked
 
+    pub fn replace<T: Sized>(&mut self, value: T) {
+        assert!(
+            {
+                let _l = Layout::new::<T>();
+                self.layout.size() == _l.size() && self.layout.align() == _l.align()
+            },
+            "Layout of values stored on a Blob should match the Blob's layout"
+        );
+
+        // TODO: behavior should be that of take()
+        unsafe {
+            // TODO: SAFETY: ---
+            self.replace_unchecked(value);
+        }
+    }
+
+    /// Safety:
+    /// This function is unsafe as it does not verify the preconditions from [`Blob::replace`].
+    /// Aditionally:
+    ///
+    /// - The
+    pub unsafe fn replace_unchecked<T: Sized>(&mut self, value: T) {
+        debug_assert!(
+            {
+                let _l = Layout::new::<T>();
+                self.layout.size() == _l.size() && self.layout.align() == _l.align()
+            },
+            "Layout of values stored on a Blob should match the Blob's layout"
+        );
+
+        // TODO: behavior should be that of take()
+        // TODO: SAFETY: ---
+        self.replace_bytes_unchecked_internal(&value as *const _ as *const u8);
+    }
+
     /// # Safety
-    /// - `source` must be a valid pointer with the same Layout as the Blob.
+    /// - `source` must be a valid pointer and the data it points to should have the same `Layout` as the Blob.
     #[inline]
     pub fn replace_bytes(&mut self, source: &[u8]) {
+        assert!(
+            self.layout.size() == source.len(),
+            "Length of a byte slice being stored on a Blob should match the Blob's layout size"
+        );
+
+        self.init();
+        unsafe {
+            self.replace_bytes_unchecked_internal(source.as_ptr());
+        }
+    }
+
+    /// # Safety
+    /// This function is unsafe as it does not verify the preconditions from [`Blob::replace_bytes`], and Additionally:
+    ///
+    /// - The blob must have been already allocated. This can be checked with [`Self::is_init()`].
+    #[inline]
+    pub unsafe fn replace_bytes_unchecked(&mut self, source: &[u8]) {
         debug_assert!(
             self.layout.size() == source.len(),
             "Length of a byte slice being stored on a Blob should match the Blob's layout size"
         );
 
-        if self.data.is_none() {
-            unsafe {
-                self.init_unchecked();
-            }
-        }
-
-        unsafe {
-            self.replace_bytes_unchecked(source.as_ptr());
-        }
+        self.replace_bytes_unchecked_internal(source.as_ptr());
     }
 
     /// # Safety
+    /// This function is unsafe as it does not verify the preconditions from [`Blob::replace_bytes`], and Additionally:
+    ///
     /// - The blob must have been already allocated. This can be checked with [`Self::is_init()`].
-    /// - `source` must be a valid pointer and the data it points to should have the same Layout as the Blob.
     #[inline]
-    unsafe fn replace_bytes_unchecked(&mut self, source: *const u8) {
+    unsafe fn replace_bytes_unchecked_internal(&mut self, source: *const u8) {
+        debug_assert!(
+            self.data.is_some(),
+            "Blob must be initialized before replacing it's contents"
+        );
+
         std::ptr::copy_nonoverlapping::<u8>(
             source,
             self.data.unwrap().as_ptr(),
             self.layout.size(),
         );
+    }
+
+    #[inline]
+    fn init(&mut self) {
+        if self.data.is_none() {
+            unsafe {
+                self.init_unchecked();
+            }
+        }
     }
 
     /// # Safety
@@ -162,6 +219,29 @@ impl Blob {
             &mut []
         }
     }
+
+    #[inline]
+    pub fn downcast<T>(&self) -> Result<&T> {
+        if let Some(data) = self.data {
+            let t_layout = Layout::new::<T>();
+            if (self.layout.size() == t_layout.size() && self.layout.align() == t_layout.align()) {
+                Ok(unsafe { self.downcast_unchecked() })
+            } else {
+                Err(Error::LayoutMistmatch)
+            }
+        }
+        else { 
+            Err(Error::UninitializedBlob)
+        }
+    }
+
+    /// Safety:
+    /// This function is unsafe as it does not verify the preconditions from [`Blob::downcast`].
+    #[inline]
+    pub unsafe fn downcast_unchecked<T>(&self) -> &T {
+        debug_assert!(self.data.is_some(), "Blob should be initialized");
+        & *(self.data.unwrap().as_ptr() as *const T)
+    }
 }
 
 impl Drop for Blob {
@@ -206,19 +286,14 @@ mod tests {
 
     #[test]
     #[should_panic]
-    fn new_blob_unchecked_zst() {
+    #[cfg(debug_assertions)]
+    fn new_unchecked_blob_zst() {
         let _ = unsafe { Blob::new_unchecked::<()>() };
     }
 
     #[test]
-    #[should_panic]
-    fn new_blob_invalid_types() {
-        // let _ = Blob::new::<()>().unwrap();
-        let _ = unsafe { Blob::new_unchecked::<()>() };
-    }
-
-    #[test]
-    fn with_layout() {
+    #[cfg(debug_assertions)]
+    fn with_layout_unchecked() {
         let layout = Layout::new::<u32>();
         let blob = Blob::with_layout(layout).unwrap();
 
@@ -226,21 +301,14 @@ mod tests {
         assert_eq!(0, blob.bytes().len());
     }
 
-    #[test]
-    #[should_panic]
-    fn with_invalid_layout() {
-        let layout = unsafe { Layout::from_size_align_unchecked(3, 3) };
-        let _ = Blob::with_layout(layout).unwrap();
-    }
-
     const LOCALHOST_IP: &str = "127.0.0.1";
 
     #[test]
     fn from_struct() {
         use std::net::Ipv4Addr;
-        let localhost = Ipv4Addr::from_str(LOCALHOST_IP).unwrap();
+        let _localhost = Ipv4Addr::from_str(LOCALHOST_IP).unwrap();
 
-        let blob = Blob::from(localhost).unwrap();
+        let blob = Blob::from(_localhost).unwrap();
 
         assert_eq!(true, blob.is_init());
         assert_eq!(blob.layout().size(), blob.bytes().len());
@@ -251,9 +319,9 @@ mod tests {
     #[test]
     fn from_bytes() {
         use std::net::Ipv4Addr;
-        let localhost = Ipv4Addr::from_str(LOCALHOST_IP).unwrap();
+        let _localhost = Ipv4Addr::from_str(LOCALHOST_IP).unwrap();
 
-        let blob = Blob::from_bytes(localhost.octets()).unwrap();
+        let blob = Blob::from_bytes(_localhost.octets()).unwrap();
 
         assert_eq!(true, blob.is_init());
         assert_eq!(blob.layout().size(), blob.bytes().len());
