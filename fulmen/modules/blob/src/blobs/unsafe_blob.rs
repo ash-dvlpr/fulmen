@@ -1,6 +1,9 @@
 use crate::{Error, Result};
 use core::{marker::PhantomData, ptr::NonNull};
-use std::alloc::{self, Layout};
+use std::{
+    alloc::{self, Layout},
+    num::NonZeroUsize,
+};
 
 /// Internal type erased BLOB used by the [`crate::Blob`] and [`crate::VecBlob`] implementations.
 ///
@@ -62,16 +65,20 @@ impl UnsafeBlob {
         capacity: usize,
     ) -> UnsafeBlob {
         debug_assert!(item_layout.size() > 0, "Size must be non zero");
-        let data = None;
 
-        if capacity > 0 {}
-
-        UnsafeBlob {
-            data: data,
-            drop_fn: drop_fn,
-            item_layout: item_layout,
+        let mut blob = UnsafeBlob {
+            data: None,
+            drop_fn,
+            item_layout,
             _marker: PhantomData,
+        };
+
+        if capacity > 0 {
+            // SAFETY: we just checked that capacity is non zero
+            blob.alloc_buffer(NonZeroUsize::new_unchecked(capacity));
         }
+
+        blob
     }
 
     /// The [`core::alloc::Layout`] of the values stored inside the `UnsafeBlob`.
@@ -94,12 +101,15 @@ impl UnsafeBlob {
     ///
     /// See [`GlobalAlloc::alloc`].
     #[inline]
-    pub(super) unsafe fn alloc_buffer(&mut self, capacity: usize) {
-        debug_assert!(capacity > 0, "Capacity must be greater than zero");
+    pub(super) unsafe fn alloc_buffer(&mut self, capacity: NonZeroUsize) {
         debug_assert!(self.item_layout.size() > 0, "Size must be non zero");
+        debug_assert!(
+            !self.is_allocated(),
+            "UnsafeBlob shouldn't be initalized more than once"
+        );
 
         // SAFETY: item_layout has non-zero size and capacity > 0 so the array_layout will be valid.
-        let arr_layout = array_layout(&self.item_layout, capacity).unwrap();
+        let arr_layout = array_layout(&self.item_layout, capacity.into()).unwrap();
         let ptr = unsafe { std::alloc::alloc(arr_layout) };
         self.data = NonNull::new(ptr)
             .unwrap_or_else(|| std::alloc::handle_alloc_error(arr_layout))

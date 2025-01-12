@@ -13,7 +13,7 @@ pub struct Blob {
 }
 
 impl Blob {
-    const SIZE: usize = 1;
+    const CAPACITY: usize = 1;
 
     /// # Safety
     /// The type `T` doesn't implement `Drop`.
