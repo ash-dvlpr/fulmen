@@ -1,6 +1,8 @@
 use core::alloc::Layout;
 use core::ptr::{self, NonNull};
 
+pub type RawPtr = *mut u8;
+
 /// Creates a danging pointer that conforms to the specified [`Layout`] alignment.
 /// # See:
 /// * [`NonNull::dangling`]

@@ -1,9 +1,7 @@
-use crate::{Error, Result};
-use core::{marker::PhantomData, ptr::NonNull};
-use std::{
-    alloc::{self, Layout},
-    num::NonZeroUsize,
-};
+use crate::{Error, RawPtr, Result};
+
+use core::{alloc::Layout, marker::PhantomData, ptr::NonNull};
+use std::num::NonZeroUsize;
 
 /// Internal type erased BLOB used by the [`crate::Blob`] and [`crate::VecBlob`] implementations.
 ///
@@ -13,7 +11,7 @@ use std::{
 /// Because of type erasure, users must also provide the `drop_fn` for the stored values when necessary.
 pub(super) struct UnsafeBlob {
     data: Option<NonNull<u8>>,
-    pub drop_fn: Option<unsafe fn(*mut u8)>,
+    pub drop_fn: Option<unsafe fn(RawPtr)>,
     item_layout: Layout,
     _marker: PhantomData<u8>,
 }
@@ -33,7 +31,7 @@ impl UnsafeBlob {
     #[inline]
     pub unsafe fn with_capacity(
         item_layout: Layout,
-        drop_fn: Option<unsafe fn(*mut u8)>,
+        drop_fn: Option<unsafe fn(RawPtr)>,
         capacity: usize,
     ) -> Result<UnsafeBlob> {
         if item_layout.size() == 0 {
@@ -61,7 +59,7 @@ impl UnsafeBlob {
     #[inline]
     pub unsafe fn with_capacity_unchecked(
         item_layout: Layout,
-        drop_fn: Option<unsafe fn(*mut u8)>,
+        drop_fn: Option<unsafe fn(RawPtr)>,
         capacity: usize,
     ) -> UnsafeBlob {
         debug_assert!(item_layout.size() > 0, "Size must be non zero");
@@ -93,19 +91,24 @@ impl UnsafeBlob {
         self.data.is_some()
     }
 
-    pub unsafe fn get_unchecked(&self, index: usize) -> *mut u8 {
+    /// Returns
+    pub unsafe fn get_raw_ptr(&self) -> Option<RawPtr> {
+        self.data.as_ref().map(|ptr| ptr.as_ptr())
+    }
+
+    pub unsafe fn get_unchecked(&self, index: usize) -> RawPtr {
         todo!();
     }
 
-    pub unsafe fn put_unchecked(&self, index: usize, value: *const u8) {
+    pub unsafe fn put_unchecked(&self, index: usize, value: RawPtr) {
         todo!();
     }
 
-    pub unsafe fn replace_unchecked(&self, index: usize, end_index: *const u8) {
+    pub unsafe fn replace_unchecked(&self, index: usize, end_index: RawPtr) {
         todo!();
     }
 
-    pub unsafe fn swap_remove_unchecked(&self, index: usize, indexB: usize) -> *mut u8 {
+    pub unsafe fn swap_remove_unchecked(&self, index: usize, indexB: usize) -> RawPtr {
         todo!();
     }
 
@@ -118,6 +121,8 @@ impl UnsafeBlob {
     ///
     /// # Safety
     /// The `UnsafeBlob` must not have been allocated. This can be checked via [`Self::is_allocated`].
+    /// 
+    /// The caller must also keep track of the `new_capacity` after calling the method.
     ///
     /// See [`GlobalAlloc::alloc`].
     #[inline]
@@ -140,14 +145,36 @@ impl UnsafeBlob {
     /// One may call this method when you've reached `capacity` and need to increase the allocated memory.
     ///
     /// # Safety
-    /// TODO: realloc_buffer SAFETY doc
+    /// The caller is responsible for ensuring that the `capacity` is the true current capacity of the `UnsafeBlob`.
     ///
+    /// The caller must keep track of the `new_capacity` after calling the method.
     pub(super) unsafe fn realloc_buffer(
         &mut self,
         capacity: NonZeroUsize,
         new_capacity: NonZeroUsize,
     ) {
-        todo!();
+        debug_assert!(
+            self.is_allocated(),
+            "UnsafeBlob should be initalized before attempting to reallocate it"
+        );
+        debug_assert!(
+            new_capacity > capacity,
+            "New capacity should be greater than the previous one when reallocating an UnsafeBlob"
+        );
+
+        // SAFETY: was allocated beforehand so the array_layouts will be valid.
+        let arr_layout = array_layout(&self.item_layout, capacity.into()).unwrap();
+        let new_arr_layout = array_layout(&self.item_layout, new_capacity.into()).unwrap();
+
+        // SAFETY: `ptr` was allocated previouslly, so it's valid. This also implies that `item_layout` is non-zero.
+        let new_ptr = unsafe {
+            let ptr = self.get_raw_ptr().unwrap();
+            std::alloc::realloc(ptr, arr_layout, new_arr_layout.size())
+        };
+
+        self.data = NonNull::new(new_ptr)
+            .unwrap_or_else(|| std::alloc::handle_alloc_error(arr_layout))
+            .into();
     }
 
     /// Clears the internal buffer, dropping all the elements inside of it.

@@ -4,6 +4,7 @@ pub(crate) mod ptr;
 pub(crate) mod blobs;
 
 // --- API Flattening
+pub use ptr::RawPtr;
 // pub use blobs::Blob;
 // pub use blobs::vecblob::VecBlob;
 
