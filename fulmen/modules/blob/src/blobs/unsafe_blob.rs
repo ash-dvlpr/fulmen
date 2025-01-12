@@ -93,6 +93,26 @@ impl UnsafeBlob {
         self.data.is_some()
     }
 
+    pub unsafe fn get_unchecked(&self, index: usize) -> *mut u8 {
+        todo!();
+    }
+
+    pub unsafe fn put_unchecked(&self, index: usize, value: *const u8) {
+        todo!();
+    }
+
+    pub unsafe fn replace_unchecked(&self, index: usize, end_index: *const u8) {
+        todo!();
+    }
+
+    pub unsafe fn swap_remove_unchecked(&self, index: usize, indexB: usize) -> *mut u8 {
+        todo!();
+    }
+
+    pub unsafe fn swap_remove_drop_unchecked(&self, index: usize, indexB: usize) {
+        todo!();
+    }
+
     /// Allocate a buffer for the `UnsafeBlob`. Only use this when initializing the `UnsafeBlob`.
     /// If the `UnsafeBlob` has already been allocated, use [`Self::realloc_buffer`] instead.
     ///
@@ -116,11 +136,35 @@ impl UnsafeBlob {
             .into();
     }
 
-    pub(super) unsafe fn realloc_buffer(&mut self, capacity: usize, new_capacity: usize) {
+    /// Reallocate the internal buffer buffer of the `UnsafeBlob`.
+    /// One may call this method when you've reached `capacity` and need to increase the allocated memory.
+    ///
+    /// # Safety
+    /// TODO: realloc_buffer SAFETY doc
+    ///
+    pub(super) unsafe fn realloc_buffer(
+        &mut self,
+        capacity: NonZeroUsize,
+        new_capacity: NonZeroUsize,
+    ) {
         todo!();
     }
 
-    pub(super) unsafe fn drop_buffer(&mut self, size: usize, capacity: usize) {
+    /// Clears the internal buffer, dropping all the elements inside of it.
+    ///
+    /// The behaviour should be comparable to that of [`Vec::clear`].
+    ///
+    /// # Parameters
+    /// - `len`: The current length of the `UnsafeBlob`, shouldn't exceed the capacity.
+    ///
+    /// # Safety
+    /// TODO: clear_buffer SAFETY doc
+    ///
+    pub(super) unsafe fn clear_buffer(&mut self, len: usize) {
+        todo!();
+    }
+
+    pub unsafe fn drop(&self, index: usize) -> *mut u8 {
         todo!();
     }
 }
