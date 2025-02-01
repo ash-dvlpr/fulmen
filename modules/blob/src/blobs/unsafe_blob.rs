@@ -1,6 +1,11 @@
-use crate::{Error, RawPtr, Result};
+use crate::{Error, Result};
+use fulmen_ptr::RawPtr;
 
-use core::{alloc::Layout, marker::PhantomData, ptr::NonNull};
+use core::{
+    alloc::{self, Layout},
+    marker::PhantomData,
+    ptr::NonNull,
+};
 use std::num::NonZeroUsize;
 
 /// Internal type erased BLOB used by the [`crate::Blob`] and [`crate::VecBlob`] implementations.
@@ -91,6 +96,12 @@ impl UnsafeBlob {
         self.data.is_some()
     }
 
+    /// Wether or not the `UnsafeBlob` has a drop_fn registered.
+    #[inline]
+    pub fn has_drop(&self) -> bool {
+        self.drop_fn.is_some()
+    }
+
     /// Returns
     pub unsafe fn get_raw_ptr(&self) -> Option<RawPtr> {
         self.data.as_ref().map(|ptr| ptr.as_ptr())
@@ -121,7 +132,7 @@ impl UnsafeBlob {
     ///
     /// # Safety
     /// The `UnsafeBlob` must not have been allocated. This can be checked via [`Self::is_allocated`].
-    /// 
+    ///
     /// The caller must also keep track of the `new_capacity` after calling the method.
     ///
     /// See [`GlobalAlloc::alloc`].
@@ -182,24 +193,53 @@ impl UnsafeBlob {
     /// The behaviour should be comparable to that of [`Vec::clear`].
     ///
     /// # Parameters
-    /// - `len`: The current length of the `UnsafeBlob`, shouldn't exceed the capacity.
+    /// - `len`: The true current length of the `UnsafeBlob`, shouldn't exceed the capacity.
     ///
     /// # Safety
-    /// TODO: clear_buffer SAFETY doc
+    /// The buffer must be allocated
+    /// The `drop_fn` of the `UnsafeBlob` must be safe to call for all elements from `i` in `0..len`.
     ///
+    /// If the `UnsafeBlob` was properly constructed, this should be true for all elements that were intialized,
+    /// as long as the `len` of the `UnsafeBlob` has been properly tracked.
     pub(super) unsafe fn clear_buffer(&mut self, len: usize) {
-        todo!();
+        if let Some(drop_fn) = self.drop_fn {
+            // Set `self.drop_fn` to `None` before dropping any values toavoid double dropping values in case of an unwind.
+            self.drop_fn = None;
+            let elem_size = self.item_layout.size();
+            for i in 0..len {
+                // SAFETY:
+                // - 0 <= `i` < `len`, so `i * elem_size` will be inside the buffer's allocation.
+                // - `elem_size` is the size of the stored element's errased type, so multiplying preserves alignement.
+                let element_ptr = unsafe { self.get_raw_ptr().unwrap().byte_add(i * elem_size) };
+                // SAFETY: `element` was stored inside the `UnsafeBlob`, so it's type must match that of `drop_fn`.
+                unsafe { drop_fn(element_ptr) };
+            }
+            self.drop_fn = Some(drop_fn);
+        }
     }
 
-    /// Used to drop the internal buffer and all the contained values
+    /// Used to drop the internal buffer and all the contained values.
+    ///
+    /// Must be manually called, as the UnsafeBlob can't implement Drop
+    /// due to not keeping track of length and capacity itself.
+    ///
+    /// # Parameters
+    /// - `len`: The true current length of the `UnsafeBlob`, shouldn't exceed the capacity.
+    /// - `capacity`: The true current capacity of the `UnsafeBlob`.
+    ///
+    /// # Safety
+    /// The UnsafeBlob must be "discarded" and not used again after calling this method.
     pub unsafe fn drop(&mut self, len: usize, capacity: usize) {
         if self.is_allocated() {
-            debug_assert!(capacity > 0, "Buffer was allocated but capacity doesn't match.");
+            debug_assert!(
+                capacity > 0,
+                "Buffer was allocated but capacity doesn't match."
+            );
 
             self.clear_buffer(len);
             let arr_layout = array_layout(&self.item_layout, capacity).unwrap();
+            std::alloc::dealloc(self.get_raw_ptr().unwrap(), arr_layout);
         }
-        todo!();
     }
 }
 
