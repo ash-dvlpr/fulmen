@@ -191,7 +191,14 @@ impl UnsafeBlob {
         todo!();
     }
 
-    pub unsafe fn drop(&self, index: usize) -> *mut u8 {
+    /// Used to drop the internal buffer and all the contained values
+    pub unsafe fn drop(&mut self, len: usize, capacity: usize) {
+        if self.is_allocated() {
+            debug_assert!(capacity > 0, "Buffer was allocated but capacity doesn't match.");
+
+            self.clear_buffer(len);
+            let arr_layout = array_layout(&self.item_layout, capacity).unwrap();
+        }
         todo!();
     }
 }
