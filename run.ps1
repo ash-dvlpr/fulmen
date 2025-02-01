@@ -1,1 +1,0 @@
-cargo run --manifest-path=test_app/Cargo.toml --profile dev
