@@ -1,13 +1,15 @@
 [package]
-name = "core"
+name = "fulmen_core"
+description = "Fulmen's internals"
 version = "0.1.0"
+crate-type = ["lib"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 # Modules
-renderer = { path = "../renderer", optional = true }
+fulmen_renderer = { path = "../fulmen_renderer", optional = true }
 
 # Logging
 thiserror = { workspace = true }
@@ -25,9 +27,9 @@ winit = { version = "0.30", optional = true, default-features = false, features 
 
 
 [features]
-rendering = ["dep:renderer", "dep:winit"]
+rendering = ["dep:fulmen_renderer", "dep:winit"]
 # x11 = ["rendering", "winit/x11"]
 # wayland = ["rendering", "winit/wayland"]
 
-logging = ["dep:log", "renderer/logging"]
-debug_logging = ["logging", "renderer/debug_logging"]
+logging = ["dep:log", "fulmen_renderer/logging"]
+debug_logging = ["logging", "fulmen_renderer/debug_logging"]

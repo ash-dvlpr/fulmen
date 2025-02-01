@@ -58,17 +58,17 @@ pub trait Component: Send + Sync + 'static {
 #[macro_export]
 macro_rules! impl_component {
     ( $t:ty ) => {
-        impl_component!($t, fecs::component::StorageType::SparseSet);
+        impl_component!($t, fulmen_ecs::component::StorageType::SparseSet);
     };
     ( $t:ty, $storage_type:ident ) => {
-        impl fecs::component::Component for $t {
-            const STORAGE_TYPE: fecs::component::StorageType =
-                fecs::component::StorageType::$storage_type;
+        impl fulmen_ecs::component::Component for $t {
+            const STORAGE_TYPE: fulmen_ecs::component::StorageType =
+                fulmen_ecs::component::StorageType::$storage_type;
         }
     };
     ( $t:ty, $storage_type:expr ) => {
-        impl fecs::component::Component for $t {
-            const STORAGE_TYPE: fecs::component::StorageType = $storage_type;
+        impl fulmen_ecs::component::Component for $t {
+            const STORAGE_TYPE: fulmen_ecs::component::StorageType = $storage_type;
         }
     };
 }

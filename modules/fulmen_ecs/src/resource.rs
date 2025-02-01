@@ -4,7 +4,7 @@ pub trait Resource: Send + Sync + 'static {}
 macro_rules! impl_resource {
     ( $( $t:ty ),* ) => {
         $(
-            impl fecs::resource::Resource for $t {}
+            impl fulmen_ecs::resource::Resource for $t {}
         )*
     };
 }

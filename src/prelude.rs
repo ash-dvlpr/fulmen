@@ -1,2 +1,2 @@
 #[doc(hidden)]
-pub use core::application::App;
+pub use fulmen_core::application::App;

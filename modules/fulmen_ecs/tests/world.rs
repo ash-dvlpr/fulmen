@@ -1,7 +1,7 @@
 mod common;
 use common::MyRes;
 
-use fecs::World;
+use fulmen_ecs::World;
 
 #[test]
 fn test_resources() {

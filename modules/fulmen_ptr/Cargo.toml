@@ -1,6 +1,8 @@
 [package]
-name = "fecs"
+name = "fulmen_ptr"
+description = "Fulmen's internal raw pointer types."
 version = "0.1.0"
+crate-type = ["lib"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -10,12 +12,8 @@ edition = "2021"
 
 # Logging
 thiserror = { workspace = true }
-log = { workspace = true, optional = true }
 
 # Other
 
-
-
 [features]
-logging = ["dep:log"]
-debug_logging = ["logging"]
+default = []

@@ -1,4 +1,4 @@
-use fecs::*;
+use fulmen_ecs::*;
 
 #[allow(dead_code)]
 struct TestCompA(pub u32);

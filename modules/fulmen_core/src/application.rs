@@ -7,7 +7,7 @@ use log::*;
 
 // --- rendering
 #[cfg(feature = "rendering")]
-use renderer::*;
+use fulmen_renderer::*;
 #[cfg(feature = "rendering")]
 use winit::event_loop::{EventLoop, EventLoopBuilder};
 

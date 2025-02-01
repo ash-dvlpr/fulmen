@@ -1,7 +1,7 @@
 [package]
 name = "fulmen"
+description = "ECS based Game Engine made with Rust."
 version = "0.0.1"
-description = "Rendering Engine made with Vulkan"
 crate-type = ["lib"]
 edition = "2021"
 
@@ -20,12 +20,12 @@ log = { version = ">=0.4" }
 
 [dependencies]
 # Engine Modules
-core = { path = "modules/core" }
-fecs = { path = "modules/fecs" }
+fulmen_core = { path = "modules/fulmen_core" }
+fulmen_ecs = { path = "modules/fulmen_ecs" }
 
 [features]
 default = ["rendering"]
 
-rendering = ["core/rendering"]
-logging = ["core/logging"]
-debug_logging = ["core/debug_logging"]
+rendering = ["fulmen_core/rendering"]
+logging = ["fulmen_core/logging"]
+debug_logging = ["fulmen_core/debug_logging"]
