@@ -6,10 +6,7 @@ use core::{alloc::Layout, marker::PhantomData, mem, ptr::{self, NonNull}, slice}
 
 /// Type erased data storage.
 pub struct Blob {
-    data: Option<NonNull<u8>>,
-    pub(crate) drop_fn: Option<unsafe fn(*mut u8)>,
-    item_layout: Layout,
-    _marker: PhantomData<u8>,
+    data: UnsafeBlob,
 }
 
 impl Blob {
