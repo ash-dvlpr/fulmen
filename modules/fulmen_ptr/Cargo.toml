@@ -9,10 +9,7 @@ edition = "2021"
 
 [dependencies]
 # Modules
-
 # Logging
-thiserror = { workspace = true }
-
 # Other
 
 [features]

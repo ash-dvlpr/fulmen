@@ -342,9 +342,6 @@ dependencies = [
 [[package]]
 name = "fulmen_ptr"
 version = "0.1.0"
-dependencies = [
- "thiserror 2.0.11",
-]
 
 [[package]]
 name = "fulmen_renderer"
