@@ -1,6 +1,7 @@
 use crate::{Error, Result};
-use fulmen_ptr::*;
+use fulmen_ptr::{util::array_layout, *};
 
+use core::cell::UnsafeCell;
 use core::num::NonZeroUsize;
 use core::{alloc::Layout, marker::PhantomData, ptr::NonNull};
 
@@ -103,12 +104,14 @@ impl UnsafeBlob {
     }
 
     /// Gets the [`Ptr`] to the start of the underlying buffer.
+    #[inline]
     pub unsafe fn get_ptr(&self) -> Option<Ptr<'_>> {
         // SAFETY: data is valid for as long as 'self.
         self.data.and_then(|ptr| Some(unsafe { Ptr::new(ptr) }))
     }
 
     /// Gets the [`PtrMut`] to the start of the underlying buffer.
+    #[inline]
     pub unsafe fn get_ptr_mut(&self) -> Option<PtrMut<'_>> {
         // SAFETY: data is valid for as long as 'self.
         self.data.and_then(|ptr| Some(unsafe { PtrMut::new(ptr) }))
@@ -121,6 +124,7 @@ impl UnsafeBlob {
     ///
     /// *`len` refers to the length of the array, the number of elements
     /// that have been initialized, and thus are safe to read.*
+    #[inline]
     pub unsafe fn get_unchecked(&self, index: usize) -> Ptr<'_> {
         debug_assert!(
             self.is_allocated(),
@@ -134,13 +138,14 @@ impl UnsafeBlob {
         unsafe { self.get_ptr().unwrap().byte_add(index * elem_size) }
     }
 
-    /// Mutable borrows the element at `index`, with no bounds checking.
+    /// Mutably borrows the element at `index`, with no bounds checking.
     ///
     /// # Safety
     /// - `index` < the true current `len` of the [`UnsafeBlob`].
     ///
     /// *`len` refers to the length of the array, the number of elements
     /// that have been initialized, and thus are safe to read.*
+    #[inline]
     pub unsafe fn get_unchecked_mut(&self, index: usize) -> PtrMut<'_> {
         debug_assert!(
             self.is_allocated(),
@@ -154,8 +159,22 @@ impl UnsafeBlob {
         unsafe { self.get_ptr_mut().unwrap().byte_add(index * elem_size) }
     }
 
-    pub unsafe fn get_slice<T>(&mut self, len: usize) -> &[T] {
-        todo!();
+    /// Get a slice of the [`UnsafeBlob`] `slice_len` elements long.
+    /// To get a slice of the whole Blob's contents, put the `len` of the [`UnsafeBlob`] into the `slice_len`.
+    ///
+    /// # Safety
+    /// - `slice_len` <= `len` of the [`UnsafeBlob`].
+    ///
+    /// *`len` refers to the length of the array, the number of elements
+    /// that have been initialized, and thus are safe to read.*
+    pub unsafe fn get_slice<T>(&mut self, slice_len: usize) -> &[UnsafeCell<T>] {
+        if let Some(ptr) = &self.data {
+            unsafe {
+                core::slice::from_raw_parts::<UnsafeCell<T>>(ptr.as_ptr() as *const _, slice_len)
+            }
+        } else {
+            &[]
+        }
     }
 
     /// Allocate a buffer for the [`UnsafeBlob`]. Only use this when initializing the `UnsafeBlob`.
@@ -315,52 +334,5 @@ impl UnsafeBlob {
 
     pub unsafe fn swap_remove_drop_unchecked(&mut self, index: usize, last_index: usize) {
         todo!();
-    }
-}
-
-/// From <https://doc.rust-lang.org/beta/src/core/alloc/layout.rs.html>
-pub(super) fn array_layout(item_layout: &Layout, capacity: usize) -> Option<Layout> {
-    let (array_layout, offset) = layout_repeat(item_layout, capacity)?;
-    debug_assert!(
-        item_layout.size() == offset,
-        "Offset of an array_layout for an item_layout should match the item_layout's size."
-    );
-
-    Some(array_layout)
-}
-
-/// From <https://doc.rust-lang.org/beta/src/core/alloc/layout.rs.html>
-#[inline]
-fn layout_repeat(layout: &Layout, n: usize) -> Option<(Layout, usize)> {
-    // This cannot overflow. Quoting from the invariant of Layout:
-    // > `size`, when rounded up to the nearest multiple of `align`,
-    // > must not overflow (i.e., the rounded value must be less than
-    // > `usize::MAX`)
-    let padded = layout.pad_to_align();
-    let alloc_size = padded.size().checked_mul(n)?;
-
-    // SAFETY: layout.align() is already known to be valid and
-    // alloc_size has been padded.
-    Some((
-        unsafe { Layout::from_size_align_unchecked(alloc_size, layout.align()) },
-        padded.size(),
-    ))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::layout_repeat;
-    use std::alloc::Layout;
-
-    #[allow(unused)]
-    struct TestStruct(usize, u8, u8);
-
-    #[test]
-    fn test_array_layout() {
-        let layout = Layout::new::<TestStruct>();
-
-        let (array_layout, offset) = layout_repeat(&layout, 4).unwrap();
-        debug_assert_eq!(layout.size(), offset);
-        debug_assert_eq!(array_layout.size() / 4, layout.size());
     }
 }

@@ -22,13 +22,43 @@ pub const fn dangling_from_layout(layout: Layout) -> NonNull<u8> {
     }
 }
 
+/// From <https://doc.rust-lang.org/beta/src/core/alloc/layout.rs.html>
+pub fn array_layout(item_layout: &Layout, capacity: usize) -> Option<Layout> {
+    let (array_layout, offset) = layout_repeat(item_layout, capacity)?;
+    debug_assert!(
+        item_layout.size() == offset,
+        "Offset of an array_layout for an item_layout should match the item_layout's size."
+    );
+
+    Some(array_layout)
+}
+
+/// From <https://doc.rust-lang.org/beta/src/core/alloc/layout.rs.html>
+#[inline]
+fn layout_repeat(layout: &Layout, n: usize) -> Option<(Layout, usize)> {
+    // This cannot overflow. Quoting from the invariant of Layout:
+    // > `size`, when rounded up to the nearest multiple of `align`,
+    // > must not overflow (i.e., the rounded value must be less than
+    // > `usize::MAX`)
+    let padded = layout.pad_to_align();
+    let alloc_size = padded.size().checked_mul(n)?;
+
+    // SAFETY: layout.align() is already known to be valid and
+    // alloc_size has been padded.
+    Some((
+        unsafe { Layout::from_size_align_unchecked(alloc_size, layout.align()) },
+        padded.size(),
+    ))
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
     use core::mem;
+    use core::alloc::Layout;
 
     #[allow(dead_code)]
-    struct TestStruct(pub u32);
+    struct TestStruct(usize, u8, u8);
 
     #[test]
     fn test_dangling_from_layout() {
@@ -46,5 +76,14 @@ mod test {
             assert_ne!((non_null.as_ptr() as usize), 0);
             assert_eq!((non_null.as_ptr() as usize), mem::align_of::<TestStruct>());
         }
+    }
+
+    #[test]
+    fn test_array_layout() {
+        let layout = Layout::new::<TestStruct>();
+
+        let (array_layout, offset) = layout_repeat(&layout, 4).unwrap();
+        debug_assert_eq!(layout.size(), offset);
+        debug_assert_eq!(array_layout.size() / 4, layout.size());
     }
 }
