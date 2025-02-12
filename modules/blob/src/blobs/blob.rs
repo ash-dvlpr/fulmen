@@ -1,8 +1,7 @@
 use super::UnsafeBlob;
 use crate::{Error, Result};
 
-use core::{alloc::Layout, marker::PhantomData, mem, ptr::{self, NonNull}, slice};
-
+use core::{alloc::Layout, mem, ptr::NonNull, slice};
 
 /// Type erased data storage.
 pub struct Blob {
@@ -12,60 +11,64 @@ pub struct Blob {
 impl Blob {
     const CAPACITY: usize = 1;
 
-    /// # Safety
-    /// The type `T` doesn't implement `Drop`.
+    /// Constructs a new, empty `Blob` for the type `T`.
+    ///
+    /// The `Blob` will be lazily allocated untill a value is stored inside of it.
     #[inline]
     pub const fn new<T: Sized>() -> Result<Blob> {
         let layout = Layout::new::<T>();
-        let mut blob = Self::with_layout(layout);
-
-        if mem::needs_drop::<T>() && blob.is_ok() {
-           &blob.unwrap().drop_fn = Some(
-                ptr::drop_in_place::<T>
-           );
-        }
-
-        blob
-    }
-
-    /// # Safety
-    /// This function is unsafe as it does not verify the preconditions from [`Blob::new`].
-    #[inline]
-    pub const unsafe fn new_unchecked<T: Sized>() -> Blob {
-        let layout = Layout::new::<T>();
-        let drop_fn = None;
-        Self::with_layout_unchecked(layout, drop_fn)
-    }
-
-    #[inline]
-    pub const fn with_layout(layout: Layout) -> Result<Blob> {
         if layout.size() == 0 {
             return Err(Error::ZeroSizedLayout);
         }
 
-        // TODO: SAFETY: ---
-        Ok(unsafe { Self::with_layout_unchecked(layout, None) })
+        // SAFETY: the `layout` and `drop_fn` are coming from a valid Rust type.
+        Ok(unsafe { Self::new_unchecked::<T>() })
     }
 
-    /// # Safety
-    /// This function is unsafe as it does not verify the preconditions from [`Blob::with_layout`].
+    /// Constructs a new, empty `Blob` for the type `T`.
+    ///
+    /// The `Blob` will be lazily allocated untill a value is stored inside of it.
+    ///
+    /// # Safety:
+    /// The caller must ensure that `T` is not a `ZST`.
     #[inline]
-    pub const unsafe fn with_layout_unchecked(layout: Layout, drop_fn: Option<unsafe fn(*mut u8)>) -> Blob {
-        debug_assert!(layout.size() > 0, "Size must be non zero");
-
-        Blob {
-            data: None,
-            drop_fn: drop_fn,
-            item_layout: layout,
-            _marker: PhantomData,
+    pub const unsafe fn new_unchecked<T: Sized>() -> Blob {
+        // SAFETY: the `layout` and `drop_fn` are coming from a valid Rust type.
+        Self {
+            data: UnsafeBlob::with_layout_unchecked(Layout::new::<T>(), fulmen_ptr::get_drop_fn::<T>()),
         }
     }
 
+    /// Constructs a new, empty `Blob` with the specified `capacity`.
+    ///
+    /// The `UnsafeBlob` will be lazily allocated if `capacity` is 0.
+    ///
+    /// If the `drop_fn` is `None`, values will be leaked in the case that their errased type implements [`Drop`].
+    /// This should be set to `None` based on [`core::mem::needs_drop`].
+    ///
+    /// # Safetly
+    /// The caller must ensure the following:
+    /// - `item_layout` matches that of the values being stored inside of the Blob and has propper alignement.
+    /// This also implies that the `item_layout` matches that of the values passed to `drop_fn`.
+    /// - `drop_fn` should be safe to call with any value stored inside the Blob,
+    /// as long as the `drop_fn` corresponds to the errased type of the stored values.
+    #[inline]
+    pub unsafe fn with_layout_unchecked(
+        layout: Layout,
+        drop_fn: Option<fulmen_ptr::DropFn>,
+    ) -> Blob {
+        // SAFETY: caller ensures the validity of `item_layout` and `drop_fn`.
+        Self {
+            data: unsafe { UnsafeBlob::with_layout_unchecked(layout, drop_fn) },
+        }
+    }
+
+    /// Constructs a new `Blob` from the specified value
     pub fn from<T: Sized>(value: T) -> Result<Blob> {
         let mut blob = Self::new::<T>()?;
 
         unsafe {
-            // SAFETY: We just checked for zero sized layouts on `new()`.
+            // SAFETY: We just checked for zero sized layouts on `Self::new`.
             blob.init_unchecked();
             // SAFETY: We assume we got passed a valid reference
             blob.replace_bytes_unchecked_internal(&value as *const _ as *const u8);
@@ -176,39 +179,16 @@ impl Blob {
         );
     }
 
+    /// Wether or not the `Blob` has been allocated.
     #[inline]
-    fn init(&mut self) {
-        if self.data.is_none() {
-            unsafe {
-                self.init_unchecked();
-            }
-        }
+    pub fn is_allocated(&self) -> bool {
+        self.data.is_allocated()
     }
 
-    /// # Safety
-    /// See [`GlobalAlloc::alloc`].
-    #[inline]
-    unsafe fn init_unchecked(&mut self) {
-        self.data = Some(Self::create_buffer_unchecked(self.item_layout));
-    }
-
-    /// # Safety
-    /// See [`GlobalAlloc::alloc`].
-    #[inline]
-    unsafe fn create_buffer_unchecked(layout: Layout) -> NonNull<u8> {
-        let ptr = std::alloc::alloc(layout);
-        NonNull::new_unchecked(ptr)
-    }
-
-    /// Indicates whether or not the Blob has already been allocated.
-    #[inline]
-    pub fn is_init(&self) -> bool {
-        self.data.is_some()
-    }
-
+    /// The [`Layout`] of the values stored inside the `Blob`.
     #[inline]
     pub fn layout(&self) -> Layout {
-        self.item_layout
+        self.data.item_layout()
     }
 
     #[inline]
@@ -233,13 +213,14 @@ impl Blob {
     pub fn downcast<T>(&self) -> Result<&T> {
         if let Some(data) = self.data {
             let t_layout = Layout::new::<T>();
-            if (self.item_layout.size() == t_layout.size() && self.item_layout.align() == t_layout.align()) {
+            if (self.item_layout.size() == t_layout.size()
+                && self.item_layout.align() == t_layout.align())
+            {
                 Ok(unsafe { self.downcast_unchecked() })
             } else {
                 Err(Error::LayoutMistmatch)
             }
-        }
-        else { 
+        } else {
             Err(Error::UninitializedBlob)
         }
     }
@@ -249,23 +230,17 @@ impl Blob {
     #[inline]
     pub unsafe fn downcast_unchecked<T>(&self) -> &T {
         debug_assert!(self.data.is_some(), "Blob should be initialized");
-        & *(self.data.unwrap().as_ptr() as *const T)
+        &*(self.data.unwrap().as_ptr() as *const T)
     }
 }
 
 impl Drop for Blob {
     fn drop(&mut self) {
-        if let Some(ptr) = self.data {
-            if let Some(drop_fn) = self.drop_fn {
-                self.drop_fn = None;
-                unsafe { drop_fn(ptr.as_ptr()); }
-                self.drop_fn = Some(drop_fn);
-            }
+        let len = if self.data.is_allocated() { 1 } else { 0 };
 
-            unsafe { std::alloc::dealloc(ptr.as_ptr(), self.item_layout) }
-            self.data = None;
+        unsafe {
+            self.data.drop(len, Self::CAPACITY);
         }
-        self.drop_fn = None;
     }
 }
 

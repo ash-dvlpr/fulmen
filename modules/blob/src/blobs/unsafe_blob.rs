@@ -7,75 +7,70 @@ use core::{alloc::Layout, marker::PhantomData, ptr::NonNull};
 
 /// Internal type erased BLOB used by the [`crate::Blob`] and [`crate::VecBlob`] implementations.
 ///
-/// It handles allocation and resizing, while delegating size and capacity to the users for memory performance reasons.
-/// Will lazily allocate if created with a `capacity` of 0.
+/// It handles allocation and resizing, while delegating size and capacity
+/// to the implementations for memory performance reasons.
 ///
-/// Because of type erasure, users must also provide the `drop_fn` for the stored values when necessary.
+/// Because of type erasure, users must also provide the `drop_fn` for the
+/// stored values when necessary. This will depend on [`core::mem::needs_drop`]
 pub(super) struct UnsafeBlob {
     data: Option<NonNull<u8>>,
-    pub drop_fn: Option<unsafe fn(OwnPtr)>,
+    pub drop_fn: Option<fulmen_ptr::DropFn>,
     item_layout: Layout,
     _marker: PhantomData<u8>,
 }
 
 impl UnsafeBlob {
-    /// Creates a new [`UnsafeBlob`] with the specified `capacity`.
-    /// Will lazily allocate if `capacity` is 0.
+    /// Constructs a new, empty `UnsafeBlob`.
     ///
-    /// Internal buffer size is calculated based on the `item_layout`.
+    /// The `UnsafeBlob` will be lazily allocated untill values are stored inside of it.
     ///
-    /// # Returns
-    /// - `Err` if `item_layout.size() == 0`
-    ///
-    /// # Safetly
-    /// `drop_fn` should be safe with any value stored inside the Blob,
-    /// as long as the `drop_fn` corresponds to the Type of the values being stored.
-    /// If the `drop_fn` is `None`, values will be leaked.
-    /// This should be set to none based on [`core::mem::needs_drop`].
-    #[inline]
-    pub unsafe fn with_capacity(
-        item_layout: Layout,
-        drop_fn: Option<unsafe fn(OwnPtr)>,
-        capacity: usize,
-    ) -> Result<UnsafeBlob> {
-        if item_layout.size() == 0 {
-            return Err(Error::ZeroSizedLayout);
-        }
-
-        // SAFETY: Just checked for invalid layouts
-        Ok(unsafe { Self::with_capacity_unchecked(item_layout, drop_fn, capacity) })
-    }
-
-    /// Creates a new [`UnsafeBlob`] with the specified `capacity`.
-    /// Will lazily allocate if `capacity` is 0.
-    ///
-    /// Internal buffer size is calculated based on the `item_layout`.
-    ///
-    /// # Returns
-    /// - `Err` if `item_layout.size() == 0`
+    /// If the `drop_fn` is `None`, values will be leaked in the case that their errased type implements [`Drop`].
+    /// This should be set to `None` based on [`core::mem::needs_drop`].
     ///
     /// # Safetly
-    /// `drop_fn` should be safe with any value stored inside the Blob,
-    /// as long as the `drop_fn` corresponds to the Type of the values being stored,
-    /// If the `drop_fn` is `None`, values will be leaked.
-    /// This should be set to none based on [`core::mem::needs_drop`].
-    ///
-    /// The caller must ensure that the `item_layout` has a `size > 0` and has a propper alignement.
-    /// For for a safer variant, see [`UnsafeBlob::with_capacity`].
+    /// The caller must ensure the following:
+    /// - `item_layout` matches that of the values being stored inside of the Blob and has propper alignement.
+    /// This also implies that the `item_layout` matches that of the values passed to `drop_fn`.
+    /// - `drop_fn` should be safe to call with any value stored inside the Blob,
+    /// as long as the `drop_fn` corresponds to the errased type of the stored values.
     #[inline]
-    pub unsafe fn with_capacity_unchecked(
+    #[must_use]
+    pub const unsafe fn with_layout_unchecked(
         item_layout: Layout,
-        drop_fn: Option<unsafe fn(OwnPtr)>,
-        capacity: usize,
+        drop_fn: Option<fulmen_ptr::DropFn>,
     ) -> UnsafeBlob {
         debug_assert!(item_layout.size() > 0, "Size must be non zero");
 
-        let mut blob = UnsafeBlob {
+        Self {
             data: None,
             drop_fn,
             item_layout,
             _marker: PhantomData,
-        };
+        }
+    }
+
+    /// Constructs a new, empty `UnsafeBlob` with the specified `capacity`.
+    ///
+    /// The `UnsafeBlob` will be lazily allocated if `capacity` is 0.
+    ///
+    /// If the `drop_fn` is `None`, values will be leaked in the case that their errased type implements [`Drop`].
+    /// This should be set to `None` based on [`core::mem::needs_drop`].
+    ///
+    /// # Safetly
+    /// The caller must ensure the following:
+    /// - `item_layout` matches that of the values being stored inside of the Blob and has propper alignement.
+    /// This also implies that the `item_layout` matches that of the values passed to `drop_fn`.
+    /// - `drop_fn` should be safe to call with any value stored inside the Blob,
+    /// as long as the `drop_fn` corresponds to the errased type of the stored values.
+    #[inline]
+    #[must_use]
+    pub unsafe fn with_capacity_unchecked(
+        item_layout: Layout,
+        drop_fn: Option<fulmen_ptr::DropFn>,
+        capacity: usize,
+    ) -> UnsafeBlob {
+        // SAFETY: The caller ensures the validity of `item_layout` and `drop_fn`.
+        let mut blob = unsafe { Self::with_layout_unchecked(item_layout, drop_fn) };
 
         if capacity > 0 {
             // SAFETY: we just checked that capacity is non zero
@@ -85,7 +80,7 @@ impl UnsafeBlob {
         blob
     }
 
-    /// The [`core::alloc::Layout`] of the values stored inside the [`UnsafeBlob`].
+    /// The [`Layout`] of the values stored inside the `UnsafeBlob`.
     #[inline]
     pub fn item_layout(&self) -> Layout {
         self.item_layout
@@ -97,7 +92,7 @@ impl UnsafeBlob {
         self.data.is_some()
     }
 
-    /// Wether or not the [`UnsafeBlob`] has a drop_fn registered.
+    /// Wether or not the `UnsafeBlob` has a drop_fn registered.
     #[inline]
     pub fn has_drop(&self) -> bool {
         self.drop_fn.is_some()
@@ -120,9 +115,10 @@ impl UnsafeBlob {
     /// Borrows the element at `index`, with no bounds checking.
     ///
     /// # Safety
-    /// - `index` < the true current `len` of the [`UnsafeBlob`].
+    /// The caller must ensure the following:
+    /// - `index` < `len`.
     ///
-    /// *`len` refers to the length of the array, the number of elements
+    /// *`len` refers to the length of the `UnsafeBlob`; the number of elements
     /// that have been initialized, and thus are safe to read.*
     #[inline]
     pub unsafe fn get_unchecked(&self, index: usize) -> Ptr<'_> {
@@ -141,9 +137,10 @@ impl UnsafeBlob {
     /// Mutably borrows the element at `index`, with no bounds checking.
     ///
     /// # Safety
-    /// - `index` < the true current `len` of the [`UnsafeBlob`].
+    /// The caller must ensure the following:
+    /// - `index` < `len`.
     ///
-    /// *`len` refers to the length of the array, the number of elements
+    /// *`len` refers to the length of the `UnsafeBlob`; the number of elements
     /// that have been initialized, and thus are safe to read.*
     #[inline]
     pub unsafe fn get_unchecked_mut(&self, index: usize) -> PtrMut<'_> {
@@ -159,13 +156,14 @@ impl UnsafeBlob {
         unsafe { self.get_ptr_mut().unwrap().byte_add(index * elem_size) }
     }
 
-    /// Get a slice of the [`UnsafeBlob`] `slice_len` elements long.
+    /// Get a slice of elements from the `UnsafeBlob`, `slice_len` elements long.
     /// To get a slice of the whole Blob's contents, put the `len` of the [`UnsafeBlob`] into the `slice_len`.
     ///
     /// # Safety
-    /// - `slice_len` <= `len` of the [`UnsafeBlob`].
+    /// The caller must ensure the following:
+    /// - `slice_len` <= `len`.
     ///
-    /// *`len` refers to the length of the array, the number of elements
+    /// *`len` refers to the length of the `UnsafeBlob`; the number of elements
     /// that have been initialized, and thus are safe to read.*
     pub unsafe fn get_slice<T>(&mut self, slice_len: usize) -> &[UnsafeCell<T>] {
         if let Some(ptr) = &self.data {
@@ -177,11 +175,12 @@ impl UnsafeBlob {
         }
     }
 
-    /// Allocate a buffer for the [`UnsafeBlob`]. Only use this when initializing the `UnsafeBlob`.
-    /// If the [`UnsafeBlob`] has already been allocated, use [`Self::realloc_buffer`] instead.
+    /// Allocate a buffer for the `UnsafeBlob`. Only use this when initializing the `UnsafeBlob`.
+    /// If the `UnsafeBlob` has already been allocated, use [`Self::realloc_buffer`] instead.
     ///
     /// # Safety
-    /// The [`UnsafeBlob`] must not have been allocated. This can be checked via [`Self::is_allocated`].
+    /// The caller must ensure that the `UnsafeBlob` must not have been already allocated. 
+    /// This can be checked via [`Self::is_allocated`].
     ///
     /// The caller must also keep track of the `new_capacity` after calling the method.
     ///
@@ -292,6 +291,10 @@ impl UnsafeBlob {
     /// The UnsafeBlob must be "discarded" and not used again after calling this method.
     pub unsafe fn drop(&mut self, len: usize, capacity: usize) {
         if self.is_allocated() {
+            debug_assert!(
+                capacity >= len,
+                "Length exceedes the capacity, this should be impossible."
+            );
             debug_assert!(
                 capacity > 0,
                 "Buffer was allocated but capacity doesn't match."

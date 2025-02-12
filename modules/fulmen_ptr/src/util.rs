@@ -1,7 +1,6 @@
 use core::alloc::Layout;
 use core::ptr::{self, NonNull};
 
-
 /// Creates a danging pointer that conforms to the specified [`Layout`] alignment.
 /// # See:
 /// * [`NonNull::dangling`]
@@ -54,8 +53,8 @@ fn layout_repeat(layout: &Layout, n: usize) -> Option<(Layout, usize)> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use core::mem;
     use core::alloc::Layout;
+    use core::mem;
 
     #[allow(dead_code)]
     struct TestStruct(usize, u8, u8);
