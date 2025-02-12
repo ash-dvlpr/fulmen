@@ -1,8 +1,7 @@
 [package]
 name = "fulmen"
-description = "ECS based Game Engine made with Rust."
+description = "ECS based Vulkan Game Engine made with Rust."
 version = "0.0.1"
-crate-type = ["lib"]
 edition = "2021"
 
 authors = ["Xeros08 <42175313+Xeros08@users.noreply.github.com>"]
