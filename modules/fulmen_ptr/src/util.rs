@@ -59,39 +59,48 @@ mod test {
     #[allow(dead_code)]
     struct TestStruct(usize, u8, u8);
 
+    macro_rules! test_dangling_from_layout_internal {
+        ($ttype:ty) => {
+            // STD's dangling ptr
+            {
+                let non_null = NonNull::<$ttype>::dangling();
+                assert_ne!((non_null.as_ptr() as usize), 0);
+                assert_eq!((non_null.as_ptr() as usize), mem::align_of::<$ttype>());
+            }
+
+            // My dangling ptr
+            {
+                let layout = Layout::new::<$ttype>();
+                let non_null = super::dangling_from_layout(layout);
+                assert_ne!((non_null.as_ptr() as usize), 0);
+                assert_eq!((non_null.as_ptr() as usize), mem::align_of::<$ttype>());
+            }
+        };
+    }
+
     #[test]
     fn test_dangling_from_layout() {
-        // STD's dangling ptr
-        {
-            let non_null = NonNull::<TestStruct>::dangling();
-            assert_ne!((non_null.as_ptr() as usize), 0);
-            assert_eq!((non_null.as_ptr() as usize), mem::align_of::<TestStruct>());
+        test_dangling_from_layout_internal!(u8);
+        test_dangling_from_layout_internal!(TestStruct);
+        test_dangling_from_layout_internal!(Vec<TestStruct>);
+        test_dangling_from_layout_internal!(());
+    }
 
-            let non_null = NonNull::<()>::dangling();
-            assert_ne!((non_null.as_ptr() as usize), 0);
-            assert_eq!((non_null.as_ptr() as usize), mem::align_of::<()>());
-        }
+    macro_rules! test_array_layout_internal {
+        ($ttype:ty) => {
+            let layout = Layout::new::<$ttype>();
 
-        // My dangling ptr
-        {
-            let layout = Layout::new::<TestStruct>();
-            let non_null = super::dangling_from_layout(layout);
-            assert_ne!((non_null.as_ptr() as usize), 0);
-            assert_eq!((non_null.as_ptr() as usize), mem::align_of::<TestStruct>());
-
-            let layout = Layout::new::<()>();
-            let non_null = super::dangling_from_layout(layout);
-            assert_ne!((non_null.as_ptr() as usize), 0);
-            assert_eq!((non_null.as_ptr() as usize), mem::align_of::<()>());
-        }
+            let (array_layout, offset) = layout_repeat(&layout, 4).unwrap();
+            debug_assert_eq!(layout.size(), offset);
+            debug_assert_eq!(array_layout.size() / 4, layout.size());
+        };
     }
 
     #[test]
     fn test_array_layout() {
-        let layout = Layout::new::<TestStruct>();
-
-        let (array_layout, offset) = layout_repeat(&layout, 4).unwrap();
-        debug_assert_eq!(layout.size(), offset);
-        debug_assert_eq!(array_layout.size() / 4, layout.size());
+        test_array_layout_internal!(u8);
+        test_array_layout_internal!(TestStruct);
+        test_array_layout_internal!(Vec<TestStruct>);
+        test_array_layout_internal!(());
     }
 }
