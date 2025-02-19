@@ -66,6 +66,10 @@ mod test {
             let non_null = NonNull::<TestStruct>::dangling();
             assert_ne!((non_null.as_ptr() as usize), 0);
             assert_eq!((non_null.as_ptr() as usize), mem::align_of::<TestStruct>());
+
+            let non_null = NonNull::<()>::dangling();
+            assert_ne!((non_null.as_ptr() as usize), 0);
+            assert_eq!((non_null.as_ptr() as usize), mem::align_of::<()>());
         }
 
         // My dangling ptr
@@ -74,6 +78,11 @@ mod test {
             let non_null = super::dangling_from_layout(layout);
             assert_ne!((non_null.as_ptr() as usize), 0);
             assert_eq!((non_null.as_ptr() as usize), mem::align_of::<TestStruct>());
+
+            let layout = Layout::new::<()>();
+            let non_null = super::dangling_from_layout(layout);
+            assert_ne!((non_null.as_ptr() as usize), 0);
+            assert_eq!((non_null.as_ptr() as usize), mem::align_of::<()>());
         }
     }
 
