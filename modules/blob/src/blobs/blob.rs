@@ -1,7 +1,9 @@
+use fulmen_ptr::{OwnPtr, Ptr, PtrMut};
+
 use super::UnsafeBlob;
 use crate::{Error, Result};
 
-use core::{alloc::Layout, mem, ptr::NonNull, slice};
+use core::{alloc::Layout, num::NonZeroUsize};
 
 /// Type erased data storage.
 pub struct Blob {
@@ -9,6 +11,7 @@ pub struct Blob {
 }
 
 impl Blob {
+    const INDEX: usize = 0;
     const CAPACITY: usize = 1;
 
     /// Constructs a new, empty `Blob` for the type `T`.
@@ -21,7 +24,7 @@ impl Blob {
             return Err(Error::ZeroSizedLayout);
         }
 
-        // SAFETY: the `layout` and `drop_fn` are coming from a valid Rust type.
+        // SAFETY: We just checked that `T` is not a `ZST`.
         Ok(unsafe { Self::new_unchecked::<T>() })
     }
 
@@ -33,150 +36,73 @@ impl Blob {
     /// The caller must ensure that `T` is not a `ZST`.
     #[inline]
     pub const unsafe fn new_unchecked<T: Sized>() -> Blob {
+        // SAFETY: caller ensures that the stored value is not a `ZST`.
         // SAFETY: the `layout` and `drop_fn` are coming from a valid Rust type.
-        Self {
-            data: UnsafeBlob::with_layout_unchecked(Layout::new::<T>(), fulmen_ptr::get_drop_fn::<T>()),
-        }
+        Self::with_layout_unchecked(Layout::new::<T>(), fulmen_ptr::get_drop_fn::<T>())
     }
 
-    /// Constructs a new, empty `Blob` with the specified `capacity`.
+    /// Constructs a new, empty `Blob` for the specified `layout`.
     ///
-    /// The `UnsafeBlob` will be lazily allocated if `capacity` is 0.
+    /// The `Blob` will be lazily allocated untill a value is stored inside of it.
     ///
     /// If the `drop_fn` is `None`, values will be leaked in the case that their errased type implements [`Drop`].
     /// This should be set to `None` based on [`core::mem::needs_drop`].
     ///
     /// # Safetly
     /// The caller must ensure the following:
-    /// - `item_layout` matches that of the values being stored inside of the Blob and has propper alignement.
-    /// This also implies that the `item_layout` matches that of the values passed to `drop_fn`.
+    /// - `layout.size()` > `0`
+    /// - `layout` matches that of the values being stored inside of the Blob and has propper alignement.
+    /// This also implies that the `layout` matches that of the values passed to `drop_fn`.
     /// - `drop_fn` should be safe to call with any value stored inside the Blob,
     /// as long as the `drop_fn` corresponds to the errased type of the stored values.
     #[inline]
-    pub unsafe fn with_layout_unchecked(
+    pub const unsafe fn with_layout_unchecked(
         layout: Layout,
         drop_fn: Option<fulmen_ptr::DropFn>,
     ) -> Blob {
-        // SAFETY: caller ensures the validity of `item_layout` and `drop_fn`.
+        // SAFETY: caller ensures that the stored value is not a `ZST`.
+        // SAFETY: caller ensures the validity of `layout` and `drop_fn`.
         Self {
             data: unsafe { UnsafeBlob::with_layout_unchecked(layout, drop_fn) },
         }
     }
 
-    /// Constructs a new `Blob` from the specified value
+    /// Constructs a new `Blob` from the specified value of type `T`.
+    #[inline]
     pub fn from<T: Sized>(value: T) -> Result<Blob> {
-        let mut blob = Self::new::<T>()?;
-
-        unsafe {
-            // SAFETY: We just checked for zero sized layouts on `Self::new`.
-            blob.init_unchecked();
-            // SAFETY: We assume we got passed a valid reference
-            blob.replace_bytes_unchecked_internal(&value as *const _ as *const u8);
+        let layout = Layout::new::<T>();
+        if layout.size() == 0 {
+            return Err(Error::ZeroSizedLayout);
         }
 
-        Ok(blob)
+        // SAFETY: We just checked that `T` is not a `ZST`.
+        Ok(unsafe { Self::from_unchecked::<T>(value) })
     }
 
-    // TODO: fn from_unchecked
-
-    #[inline]
-    pub fn from_bytes(bytes: impl AsRef<[u8]>) -> Result<Blob> {
-        let bytes = bytes.as_ref();
-        let layout = Layout::array::<u8>(bytes.len())?;
-
-        let mut blob = Self::with_layout(layout)?;
-        unsafe {
-            // SAFETY: We just checked for zero sized layouts on `with_layout()`.
-            blob.init_unchecked();
-            // SAFETY: We assume we got passed a valid reference
-            blob.replace_bytes_unchecked(bytes);
-        }
-
-        Ok(blob)
-    }
-
-    // TODO: fn from_bytes_unchecked
-
-    pub fn replace<T: Sized>(&mut self, value: T) {
-        assert!(
-            {
-                let _l = Layout::new::<T>();
-                self.item_layout.size() == _l.size() && self.item_layout.align() == _l.align()
-            },
-            "Layout of values stored on a Blob should match the Blob's layout"
-        );
-
-        // TODO: behavior should be that of take()
-        unsafe {
-            // TODO: SAFETY: ---
-            self.replace_unchecked(value);
-        }
-    }
-
-    /// Safety:
-    /// This function is unsafe as it does not verify the preconditions from [`Blob::replace`].
-    /// Aditionally:
+    /// Constructs a new `Blob` from the specified value of type `T`.
     ///
-    /// - The
-    pub unsafe fn replace_unchecked<T: Sized>(&mut self, value: T) {
-        debug_assert!(
-            {
-                let _l = Layout::new::<T>();
-                self.item_layout.size() == _l.size() && self.item_layout.align() == _l.align()
-            },
-            "Layout of values stored on a Blob should match the Blob's layout"
-        );
-
-        // TODO: behavior should be that of take()
-        // TODO: SAFETY: ---
-        self.replace_bytes_unchecked_internal(&value as *const _ as *const u8);
-    }
-
-    /// # Safety
-    /// - `source` must be a valid pointer and the data it points to should have the same `Layout` as the Blob.
+    /// # Safety:
+    /// The caller must ensure that `T` is not a `ZST`.
     #[inline]
-    pub fn replace_bytes(&mut self, source: &[u8]) {
-        assert!(
-            self.item_layout.size() == source.len(),
-            "Length of a byte slice being stored on a Blob should match the Blob's layout size"
-        );
+    pub unsafe fn from_unchecked<T: Sized>(value: T) -> Blob {
+        // SAFETY: caller ensures that the stored value is not a `ZST`.
+        // SAFETY: the `layout` and `drop_fn` are coming from a valid Rust type.
+        let mut blob = Self {
+            data: UnsafeBlob::with_capacity_unchecked(
+                Layout::new::<T>(),
+                fulmen_ptr::get_drop_fn::<T>(),
+                Self::CAPACITY,
+            ),
+        };
 
-        self.init();
-        unsafe {
-            self.replace_bytes_unchecked_internal(source.as_ptr());
-        }
-    }
+        OwnPtr::from(value, |ptr| {
+            unsafe {
+                // SAFETY: `ptr` is valid for the length of this scope.
+                blob.data.initialize_unchecked(Self::INDEX, ptr);
+            }
+        });
 
-    /// # Safety
-    /// This function is unsafe as it does not verify the preconditions from [`Blob::replace_bytes`], and Additionally:
-    ///
-    /// - The blob must have been already allocated. This can be checked with [`Self::is_init()`].
-    #[inline]
-    pub unsafe fn replace_bytes_unchecked(&mut self, source: &[u8]) {
-        debug_assert!(
-            self.item_layout.size() == source.len(),
-            "Length of a byte slice being stored on a Blob should match the Blob's layout size"
-        );
-
-        self.replace_bytes_unchecked_internal(source.as_ptr());
-    }
-
-    /// # Safety
-    /// This function is unsafe as it does not verify the preconditions from [`Blob::replace_bytes`], and Additionally:
-    ///
-    /// - The blob must have been already allocated. This can be checked with [`Self::is_init()`].
-    #[inline]
-    unsafe fn replace_bytes_unchecked_internal(&mut self, source: *const u8) {
-        debug_assert!(
-            self.data.is_some(),
-            "Blob must be initialized before replacing it's contents"
-        );
-
-        std::ptr::copy_nonoverlapping::<u8>(
-            source,
-            self.data.unwrap().as_ptr(),
-            self.item_layout.size(),
-        );
+        blob
     }
 
     /// Wether or not the `Blob` has been allocated.
@@ -191,32 +117,107 @@ impl Blob {
         self.data.item_layout()
     }
 
+    /// Checks the layout of the type parameter `T` against `Blob::layout()`.
     #[inline]
-    pub fn bytes(&self) -> &[u8] {
-        if let Some(ptr) = self.data {
-            unsafe { slice::from_raw_parts(ptr.as_ptr(), self.item_layout.size()) }
-        } else {
-            &[]
-        }
+    fn check_layout<T>(&self) -> bool {
+        let t_layout = Layout::new::<T>();
+        self.layout().size() == t_layout.size() && self.layout().align() == t_layout.align()
     }
 
+    /// Replaces the value stored inside of the `Blob`, dropping the old value.
+    ///
+    /// If the `Blob` didn't hold a previous value, it will initialize with the passed value.
     #[inline]
-    pub fn bytes_mut(&mut self) -> &mut [u8] {
-        if let Some(ptr) = self.data {
-            unsafe { slice::from_raw_parts_mut(ptr.as_ptr(), self.item_layout.size()) }
-        } else {
-            &mut []
-        }
-    }
-
-    #[inline]
-    pub fn downcast<T>(&self) -> Result<&T> {
-        if let Some(data) = self.data {
-            let t_layout = Layout::new::<T>();
-            if (self.item_layout.size() == t_layout.size()
-                && self.item_layout.align() == t_layout.align())
+    pub fn replace<T: Sized>(&mut self, value: T) {
+        assert!(
             {
-                Ok(unsafe { self.downcast_unchecked() })
+                let _l = Layout::new::<T>();
+                self.layout().size() == _l.size() && self.layout().align() == _l.align()
+            },
+            "Layout of values stored on a Blob should match the Blob's layout"
+        );
+
+        if !self.is_allocated() {
+            // SAFETY: `Blob` was not allocated
+            unsafe {
+                self.data
+                    .alloc_buffer(NonZeroUsize::new_unchecked(Self::CAPACITY))
+            };
+            OwnPtr::from(value, |ptr| {
+                unsafe {
+                    // SAFETY: `ptr` is valid for the length of this scope.
+                    self.data.initialize_unchecked(Self::INDEX, ptr);
+                }
+            });
+        } else {
+            OwnPtr::from(value, |ptr| {
+                unsafe {
+                    // SAFETY: `ptr` is valid for the length of this scope.
+                    self.data.replace_unchecked(Self::INDEX, ptr);
+                }
+            });
+        }
+    }
+
+    /// Replaces the value stored inside of the `Blob`, dropping the old value.
+    ///
+    /// # Safety:
+    /// The caller must ensure:
+    /// - the `Blob` had been previouslly allocated.
+    /// - that `T` is not a `ZST`.
+    #[inline]
+    pub fn replace_unchecked<T: Sized>(&mut self, value: T) {
+        assert!(
+            {
+                let _l = Layout::new::<T>();
+                self.layout().size() == _l.size() && self.layout().align() == _l.align()
+            },
+            "Layout of values stored on a Blob should match the Blob's layout"
+        );
+        // SAFETY: caller ensures `Blob` was allocated and that `value` is not a `ZST`.
+        OwnPtr::from(value, |ptr| {
+            unsafe {
+                // SAFETY: `ptr` is valid for the length of this scope.
+                self.data.replace_unchecked(Self::INDEX, ptr);
+            }
+        });
+    }
+
+    /// Gets the [`Ptr`] to the start of the underlying buffer.
+    #[inline]
+    pub fn get_ptr(&self) -> Option<Ptr<'_>> {
+        self.data.get_ptr()
+    }
+
+    /// Gets the [`Ptr`] to the start of the underlying buffer.
+    ///
+    /// # Safety:
+    /// The caller must ensure that the `UnsafeBlob` is allocated.
+    #[inline]
+    pub unsafe fn get_ptr_unchecked(&self) -> Ptr<'_> {
+        self.data.get_ptr_unchecked()
+    }
+
+    /// Gets the [`PtrMut`] to the start of the underlying buffer.
+    #[inline]
+    pub fn get_ptr_mut(&self) -> Option<PtrMut<'_>> {
+        self.data.get_ptr_mut()
+    }
+
+    /// Gets the [`PtrMut`] to the start of the underlying buffer.
+    ///
+    /// # Safety:
+    /// The caller must ensure that the `UnsafeBlob` is allocated.
+    #[inline]
+    pub unsafe fn get_ptr_mut_unchecked(&self) -> PtrMut<'_> {
+        self.data.get_ptr_mut_unchecked()
+    }
+
+    pub fn downcast_ref<T: Sized>(&self) -> Result<&T> {
+        if self.is_allocated() {
+            if self.check_layout::<T>() {
+                // SAFETY: We checked layouts, but we can't be 100% sure
+                Ok(unsafe { self.get_ptr_unchecked().deref::<T>() })
             } else {
                 Err(Error::LayoutMistmatch)
             }
@@ -225,36 +226,37 @@ impl Blob {
         }
     }
 
-    /// Safety:
-    /// This function is unsafe as it does not verify the preconditions from [`Blob::downcast`].
-    #[inline]
-    pub unsafe fn downcast_unchecked<T>(&self) -> &T {
-        debug_assert!(self.data.is_some(), "Blob should be initialized");
-        &*(self.data.unwrap().as_ptr() as *const T)
+    pub unsafe fn downcast_ref_unchecked<T: Sized>(&self) -> &T {
+        // SAFETY: Caller ensures the errased `type` and `layout` match.
+        unsafe { self.get_ptr_unchecked().deref::<T>() }
+    }
+
+    pub fn downcast_mut<T: Sized>(&mut self) -> Result<&mut T> {
+        if self.is_allocated() {
+            if self.check_layout::<T>() {
+                // SAFETY: We checked layouts, but we can't be 100% sure
+                Ok(unsafe { self.get_ptr_mut_unchecked().deref_mut::<T>() })
+            } else {
+                Err(Error::LayoutMistmatch)
+            }
+        } else {
+            Err(Error::UninitializedBlob)
+        }
+    }
+
+    pub unsafe fn downcast_mut_unchecked<T: Sized>(&mut self) -> &mut T {
+        // SAFETY: Caller ensures the errased `type` and `layout` match.
+        unsafe { self.get_ptr_mut_unchecked().deref_mut::<T>() }
     }
 }
 
 impl Drop for Blob {
     fn drop(&mut self) {
-        let len = if self.data.is_allocated() { 1 } else { 0 };
+        let len = if self.is_allocated() { 1 } else { 0 };
 
         unsafe {
             self.data.drop(len, Self::CAPACITY);
         }
-    }
-}
-
-impl AsRef<[u8]> for Blob {
-    #[inline(always)]
-    fn as_ref(&self) -> &[u8] {
-        self.bytes()
-    }
-}
-
-impl AsMut<[u8]> for Blob {
-    #[inline(always)]
-    fn as_mut(&mut self) -> &mut [u8] {
-        self.bytes_mut()
     }
 }
 
@@ -266,14 +268,22 @@ mod tests {
 
     #[test]
     fn new_blob() {
-        let _ = Blob::new::<u32>().unwrap();
         let _ = Blob::new::<&str>().unwrap();
+        let blob = Blob::new::<u32>().unwrap();
+        assert_eq!(false, blob.is_allocated());
     }
 
     #[test]
     #[should_panic]
     fn new_blob_zst() {
         let _ = Blob::new::<()>().unwrap();
+    }
+
+    struct PanicOnDrop(u8);
+    impl Drop for PanicOnDrop {
+        fn drop(&mut self) {
+            panic!("A 'PanicOnDrop' was dropped");
+        }
     }
 
     #[test]
@@ -287,10 +297,9 @@ mod tests {
     #[cfg(debug_assertions)]
     fn with_layout_unchecked() {
         let layout = Layout::new::<u32>();
-        let blob = Blob::with_layout(layout).unwrap();
 
-        assert_eq!(false, blob.is_init());
-        assert_eq!(0, blob.bytes().len());
+        let blob = unsafe { Blob::with_layout_unchecked(layout, None) };
+        assert_eq!(false, blob.is_allocated());
     }
 
     const LOCALHOST_IP: &str = "127.0.0.1";
@@ -302,22 +311,54 @@ mod tests {
 
         let blob = Blob::from(_localhost).unwrap();
 
-        assert_eq!(true, blob.is_init());
-        assert_eq!(blob.layout().size(), blob.bytes().len());
-
-        // TODO: Recover value
+        assert_eq!(true, blob.is_allocated());
+        assert_eq!(Layout::new::<Ipv4Addr>(), blob.layout());
     }
 
     #[test]
-    fn from_bytes() {
+    fn new_no_panic() {
+        let blob = Blob::new::<PanicOnDrop>().unwrap();
+        drop(blob);
+    }
+
+    #[test]
+    #[should_panic(expected = "A 'PanicOnDrop' was dropped")]
+    fn new_panic_on_drop() {
+        let mut blob = Blob::new::<PanicOnDrop>().unwrap();
+        blob.replace(PanicOnDrop(0_u8));
+        drop(blob);
+    }
+
+    #[test]
+    fn downcast() {
         use std::net::Ipv4Addr;
         let _localhost = Ipv4Addr::from_str(LOCALHOST_IP).unwrap();
 
-        let blob = Blob::from_bytes(_localhost.octets()).unwrap();
+        let blob = Blob::from(_localhost).unwrap();
 
-        assert_eq!(true, blob.is_init());
-        assert_eq!(blob.layout().size(), blob.bytes().len());
+        assert_eq!(true, blob.is_allocated());
 
-        // TODO: Recover value
+        let layout = Layout::new::<Ipv4Addr>();
+        assert_eq!(layout, blob.layout());
+
+        // Recover value
+        let _ = blob.downcast_ref::<Ipv4Addr>().unwrap();
+        let data = unsafe { blob.downcast_ref_unchecked::<Ipv4Addr>() };
+        assert_eq!(data.octets(), _localhost.octets());
+    }
+
+    #[test]
+    #[should_panic]
+    fn downcast_uninit() {
+        let blob = Blob::new::<u32>().unwrap();
+        let _: &u32 = blob.downcast_ref::<u32>().unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn downcast_type_missmatch() {
+        use std::net::Ipv4Addr;
+        let blob = Blob::new::<u32>().unwrap();
+        let _ = blob.downcast_ref::<Ipv4Addr>().unwrap();
     }
 }

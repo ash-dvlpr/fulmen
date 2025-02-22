@@ -1,4 +1,3 @@
-use crate::{Error, Result};
 use fulmen_ptr::{util::array_layout, *};
 
 use core::cell::UnsafeCell;
@@ -86,7 +85,13 @@ impl UnsafeBlob {
         self.item_layout
     }
 
-    /// Wether or not the [`UnsafeBlob`] has been allocated.
+    /// Wether or not the `UnsafeBlob` stores `ZSTs`.
+    #[inline]
+    pub fn is_zst(&self) -> bool {
+        self.item_layout.size() == 0
+    }
+
+    /// Wether or not the `UnsafeBlob` has been allocated.
     #[inline]
     pub fn is_allocated(&self) -> bool {
         self.data.is_some()
@@ -100,16 +105,46 @@ impl UnsafeBlob {
 
     /// Gets the [`Ptr`] to the start of the underlying buffer.
     #[inline]
-    pub unsafe fn get_ptr(&self) -> Option<Ptr<'_>> {
+    pub fn get_ptr(&self) -> Option<Ptr<'_>> {
         // SAFETY: data is valid for as long as 'self.
         self.data.and_then(|ptr| Some(unsafe { Ptr::new(ptr) }))
     }
 
+    /// Gets the [`Ptr`] to the start of the underlying buffer.
+    ///
+    /// # Safety:
+    /// The caller must ensure that the `UnsafeBlob` is allocated.
+    #[inline]
+    pub unsafe fn get_ptr_unchecked(&self) -> Ptr<'_> {
+        debug_assert!(
+            self.is_allocated(),
+            "UnsafeBlob should be initalized before attempting to access it's buffer"
+        );
+
+        // SAFETY: data is valid for as long as 'self.
+        unsafe { Ptr::new(self.data.unwrap()) }
+    }
+
     /// Gets the [`PtrMut`] to the start of the underlying buffer.
     #[inline]
-    pub unsafe fn get_ptr_mut(&self) -> Option<PtrMut<'_>> {
+    pub fn get_ptr_mut(&self) -> Option<PtrMut<'_>> {
         // SAFETY: data is valid for as long as 'self.
         self.data.and_then(|ptr| Some(unsafe { PtrMut::new(ptr) }))
+    }
+
+    /// Gets the [`PtrMut`] to the start of the underlying buffer.
+    ///
+    /// # Safety:
+    /// The caller must ensure that the `UnsafeBlob` is allocated.
+    #[inline]
+    pub unsafe fn get_ptr_mut_unchecked(&self) -> PtrMut<'_> {
+        debug_assert!(
+            self.is_allocated(),
+            "UnsafeBlob should be initalized before attempting to access it's buffer"
+        );
+
+        // SAFETY: data is valid for as long as 'self.
+        unsafe { PtrMut::new(self.data.unwrap()) }
     }
 
     /// Borrows the element at `index`, with no bounds checking.
@@ -131,7 +166,7 @@ impl UnsafeBlob {
         // SAFETY:
         // - The caller ensures `index` fits inside the buffer's allocation and the blob is allocated.
         // - `elem_size` is the size of the stored element's errased type, so multiplying preserves alignement.
-        unsafe { self.get_ptr().unwrap().byte_add(index * elem_size) }
+        unsafe { self.get_ptr_unchecked().byte_add(index * elem_size) }
     }
 
     /// Mutably borrows the element at `index`, with no bounds checking.
@@ -153,7 +188,7 @@ impl UnsafeBlob {
         // SAFETY:
         // - The caller ensures `index` fits inside the buffer's allocation and the blob is allocated.
         // - `elem_size` is the size of the stored element's errased type, so multiplying preserves alignement.
-        unsafe { self.get_ptr_mut().unwrap().byte_add(index * elem_size) }
+        unsafe { self.get_ptr_mut_unchecked().byte_add(index * elem_size) }
     }
 
     /// Get a slice of elements from the `UnsafeBlob`, `slice_len` elements long.
@@ -165,6 +200,7 @@ impl UnsafeBlob {
     ///
     /// *`len` refers to the length of the `UnsafeBlob`; the number of elements
     /// that have been initialized, and thus are safe to read.*
+    #[inline]
     pub unsafe fn get_slice<T>(&mut self, slice_len: usize) -> &[UnsafeCell<T>] {
         if let Some(ptr) = &self.data {
             unsafe {
@@ -179,7 +215,7 @@ impl UnsafeBlob {
     /// If the `UnsafeBlob` has already been allocated, use [`Self::realloc_buffer`] instead.
     ///
     /// # Safety
-    /// The caller must ensure that the `UnsafeBlob` must not have been already allocated. 
+    /// The caller must ensure that the `UnsafeBlob` must not have been already allocated.
     /// This can be checked via [`Self::is_allocated`].
     ///
     /// The caller must also keep track of the `new_capacity` after calling the method.
@@ -193,6 +229,7 @@ impl UnsafeBlob {
             "UnsafeBlob shouldn't be initalized more than once"
         );
 
+        // TODO: Only alloc if !ZST, if ZST, just store a dangling pointer
         // SAFETY: item_layout has non-zero size and capacity > 0 so the array_layout will be valid.
         let arr_layout = array_layout(&self.item_layout, capacity.into()).unwrap();
         let ptr = unsafe { std::alloc::alloc(arr_layout) };
@@ -208,6 +245,7 @@ impl UnsafeBlob {
     /// The caller is responsible for ensuring that the `capacity` is the true current capacity of the [`UnsafeBlob`].
     ///
     /// The caller must keep track of the `new_capacity` after calling the method.
+    #[inline]
     pub(super) unsafe fn realloc_buffer(
         &mut self,
         capacity: NonZeroUsize,
@@ -221,6 +259,7 @@ impl UnsafeBlob {
             new_capacity > capacity,
             "New capacity should be greater than the previous one when reallocating an UnsafeBlob"
         );
+        // TODO: Only realloc if !ZST
 
         // SAFETY: was allocated beforehand so the array_layouts will be valid.
         let arr_layout = array_layout(&self.item_layout, capacity.into()).unwrap();
@@ -245,11 +284,12 @@ impl UnsafeBlob {
     /// - `len`: The true current length of the [`UnsafeBlob`], shouldn't exceed the capacity.
     ///
     /// # Safety
-    /// The buffer must be allocated
-    /// The `drop_fn` of the `UnsafeBlob` must be safe to call for all elements from `i` in `0..len`.
+    /// - The buffer must have been allocated.
+    /// - The `drop_fn` of the `UnsafeBlob` must be safe to call for all elements from `i` in `0..len`.
     ///
     /// If the [`UnsafeBlob`] was properly constructed, this should be true for all elements that were intialized,
     /// as long as the `len` of the [`UnsafeBlob`] has been properly tracked.
+    #[inline]
     pub(super) unsafe fn clear_buffer(&mut self, len: usize) {
         debug_assert!(
             self.is_allocated(),
@@ -266,8 +306,7 @@ impl UnsafeBlob {
                 // - `elem_size` is the size of the stored element's errased type, so multiplying preserves alignement.
                 // - its's safe to `promote()` the pointer, as it will be left unreachable.
                 let element_ptr = unsafe {
-                    self.get_ptr_mut()
-                        .unwrap()
+                    self.get_ptr_mut_unchecked()
                         .byte_add(i * elem_size)
                         .promote()
                 };
@@ -289,6 +328,7 @@ impl UnsafeBlob {
     ///
     /// # Safety
     /// The UnsafeBlob must be "discarded" and not used again after calling this method.
+    #[inline]
     pub unsafe fn drop(&mut self, len: usize, capacity: usize) {
         if self.is_allocated() {
             debug_assert!(
@@ -300,41 +340,109 @@ impl UnsafeBlob {
                 "Buffer was allocated but capacity doesn't match."
             );
 
+            // TODO: Only drop if !ZST
             self.clear_buffer(len);
             let arr_layout = array_layout(&self.item_layout, capacity).unwrap();
             std::alloc::dealloc(self.data.unwrap().as_ptr(), arr_layout);
         }
     }
 
-    /// Drops the last element of the [`UnsafeBlob`].
+    /// Drops the element of the `UnsafeBlob` at `index`.
+    ///
+    /// If `index` matches `len - 1`, this will result in dropping the last element of the `UnsafeBlob`.
     ///
     /// # Safety
-    /// `last_index` must be that of the last element in the array.
+    /// `index` < `len` <= `capacity`.
+    ///
     /// After calling this method that element must not be used again unless reinitialized.
-    pub unsafe fn drop_last_element(&mut self, last_index: usize) {
+    #[inline]
+    pub unsafe fn drop_element(&mut self, index: usize) {
         if let Some(drop_fn) = self.drop_fn {
             // Set `self.drop_fn` to `None` before dropping any values to avoid double dropping values in case of an unwind.
             self.drop_fn = None;
             // SAFETY: It's safe to `promote()` the pointer, as it will be left unreachable.
-            let element_ptr = self.get_unchecked_mut(last_index).promote();
-            // SAFETY: `element` was stored inside the `UnsafeBlob`, so it's type must match that of `drop_fn`.
+            let element_ptr = self.get_unchecked_mut(index).promote();
+            // SAFETY: `element` was stored inside the `UnsafeBlob`, so it's safe to call `drop_fn` on it.
             unsafe { drop_fn(element_ptr) };
             self.drop_fn = Some(drop_fn);
         }
     }
 
-    pub unsafe fn put_unchecked(&mut self, index: usize, value: OwnPtr<'_>) {
-        todo!();
+    /// Initializes the value at `index` to `value`.
+    ///
+    /// # Safety
+    /// - `index` < `capacity`, and `value` should not point to the value at `index`.
+    /// - `value` must not point to the same value that is being initialized.
+    ///
+    /// *`capacity` referts to the size, in elements, of the allocated buffer.*
+    #[inline]
+    pub unsafe fn initialize_unchecked(&mut self, index: usize, value: OwnPtr<'_>) {
+        debug_assert!(
+            self.is_allocated(),
+            "UnsafeBlob should be initalized before attempting to modify it"
+        );
+
+        let destination = self.get_unchecked_mut(index);
+        core::ptr::copy::<u8>(
+            value.as_ptr(),
+            destination.as_ptr(),
+            self.item_layout.size(),
+        );
     }
 
-    pub unsafe fn replace_unchecked(&mut self, index: usize, last_index: OwnPtr<'_>) {
-        todo!();
+    /// Replaces the value at `index` with `value`, dropping the old value.
+    ///
+    /// # Saftey
+    /// The caller must ensure the following:
+    /// - The buffer must have been allocated.
+    /// - `index` <= `len` < `capacity`, and `value` should not point to the value at `index`.
+    /// - the `layout` for `value` must match that of `item_layout`.
+    ///
+    /// *`len` refers to the length of the `UnsafeBlob`; the number of elements
+    /// that have been initialized, and thus are safe to read.*
+    ///
+    /// *`capacity` referts to the size, in elements, of the allocated buffer.*
+    #[inline]
+    pub unsafe fn replace_unchecked(&mut self, index: usize, value: OwnPtr<'_>) {
+        debug_assert!(
+            self.is_allocated(),
+            "UnsafeBlob should be initalized before attempting to modify it"
+        );
+
+        // Get the raw ptrs to the source (value) and destination (buffer)
+        let ptr_src = value.as_ptr();
+        let ptr_dest = NonNull::from(self.get_unchecked_mut(index));
+
+        // Caller ensures the `Blob` has been allocated.
+        if let Some(drop_fn) = self.drop_fn {
+            // Set `self.drop_fn` to `None` before dropping any values to avoid double dropping values in case of an unwind.w
+            self.drop_fn = None;
+
+            // SAFETY: It's safe to `promote()` the pointer, as it was obpained from the `UsafeBlob`
+            // and the value will be left unreachable.
+            let old_value = unsafe { OwnPtr::new(ptr_dest) };
+
+            // SAFETY: `element` was stored inside the `UnsafeBlob`, so it's safe to call `drop_fn` on it.
+            unsafe { drop_fn(old_value) };
+            self.drop_fn = Some(drop_fn);
+        }
+
+        // Copy the new value into the `UnsafeBlob`
+        unsafe {
+            core::ptr::copy_nonoverlapping::<u8>(
+                ptr_src,
+                ptr_dest.as_ptr(),
+                self.item_layout.size(),
+            );
+        }
     }
 
+    #[inline]
     pub unsafe fn swap_remove_unchecked(&mut self, index: usize, last_index: usize) -> OwnPtr<'_> {
         todo!();
     }
 
+    #[inline]
     pub unsafe fn swap_remove_drop_unchecked(&mut self, index: usize, last_index: usize) {
         todo!();
     }
