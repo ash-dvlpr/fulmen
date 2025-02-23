@@ -20,7 +20,6 @@ pub(super) struct UnsafeBlob {
 
 impl UnsafeBlob {
     // region: Constructors
-
     /// Constructs a new, empty `UnsafeBlob`.
     ///
     /// The `UnsafeBlob` will be lazily allocated untill values are stored inside of it.
@@ -81,8 +80,7 @@ impl UnsafeBlob {
 
     // endregion
 
-    // region: Getters
-
+    // region: Propperties
     /// The [`Layout`] of the values stored inside the `UnsafeBlob`.
     #[inline]
     pub fn item_layout(&self) -> Layout {
@@ -104,7 +102,6 @@ impl UnsafeBlob {
     // endregion
 
     // region: Data Accesing
-
     /// Gets the [`Ptr`] to the start of the underlying buffer.
     ///
     /// # Safety:
@@ -204,7 +201,6 @@ impl UnsafeBlob {
     // endregion
 
     // region: Allocation/Deallocation
-
     /// Allocate a buffer for the `UnsafeBlob`. Only use this when initializing the `UnsafeBlob`.
     /// If the `UnsafeBlob` has already been allocated, use [`Self::realloc_buffer`] instead.
     ///
@@ -347,7 +343,6 @@ impl UnsafeBlob {
     // endregion
 
     // region: Element logic
-
     /// Drops the element of the `UnsafeBlob` at `index`.
     ///
     /// If `index` matches `len - 1`, this will result in dropping the last element of the `UnsafeBlob`.

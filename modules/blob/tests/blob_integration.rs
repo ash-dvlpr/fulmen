@@ -41,5 +41,5 @@ fn storage_and_retrieval_test() {
 
     // ZST
     let data = blobs["ZST"].downcast_ref::<()>();
-    assert_eq!(Err(Error::UninitializedBlob), data);
+    assert_eq!(Err(Error::None), data);
 }

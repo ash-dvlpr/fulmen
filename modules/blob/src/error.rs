@@ -12,9 +12,6 @@ pub enum BlobError {
     #[error("layour of type parameter T doesn't match the Blob's layout")]
     LayoutMistmatch,
 
-    #[error("can't create Blob for zero sized types")]
-    ZeroSizedLayout,
-
-    #[error("can't downcast an uninitialized Blob")]
-    UninitializedBlob,
+    #[error("analagous with Option::None")]
+    None,
 }
