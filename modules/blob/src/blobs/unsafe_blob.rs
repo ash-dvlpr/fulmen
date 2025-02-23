@@ -19,6 +19,8 @@ pub(super) struct UnsafeBlob {
 }
 
 impl UnsafeBlob {
+    // region: Constructors
+
     /// Constructs a new, empty `UnsafeBlob`.
     ///
     /// The `UnsafeBlob` will be lazily allocated untill values are stored inside of it.
@@ -38,8 +40,6 @@ impl UnsafeBlob {
         item_layout: Layout,
         drop_fn: Option<fulmen_ptr::DropFn>,
     ) -> UnsafeBlob {
-        debug_assert!(item_layout.size() > 0, "Size must be non zero");
-
         Self {
             data: None,
             drop_fn,
@@ -79,6 +79,10 @@ impl UnsafeBlob {
         blob
     }
 
+    // endregion
+
+    // region: Getters
+
     /// The [`Layout`] of the values stored inside the `UnsafeBlob`.
     #[inline]
     pub fn item_layout(&self) -> Layout {
@@ -97,25 +101,16 @@ impl UnsafeBlob {
         self.data.is_some()
     }
 
-    /// Wether or not the `UnsafeBlob` has a drop_fn registered.
-    #[inline]
-    pub fn has_drop(&self) -> bool {
-        self.drop_fn.is_some()
-    }
+    // endregion
 
-    /// Gets the [`Ptr`] to the start of the underlying buffer.
-    #[inline]
-    pub fn get_ptr(&self) -> Option<Ptr<'_>> {
-        // SAFETY: data is valid for as long as 'self.
-        self.data.and_then(|ptr| Some(unsafe { Ptr::new(ptr) }))
-    }
+    // region: Data Accesing
 
     /// Gets the [`Ptr`] to the start of the underlying buffer.
     ///
     /// # Safety:
     /// The caller must ensure that the `UnsafeBlob` is allocated.
     #[inline]
-    pub unsafe fn get_ptr_unchecked(&self) -> Ptr<'_> {
+    pub unsafe fn get_ptr(&self) -> Ptr<'_> {
         debug_assert!(
             self.is_allocated(),
             "UnsafeBlob should be initalized before attempting to access it's buffer"
@@ -126,18 +121,11 @@ impl UnsafeBlob {
     }
 
     /// Gets the [`PtrMut`] to the start of the underlying buffer.
-    #[inline]
-    pub fn get_ptr_mut(&self) -> Option<PtrMut<'_>> {
-        // SAFETY: data is valid for as long as 'self.
-        self.data.and_then(|ptr| Some(unsafe { PtrMut::new(ptr) }))
-    }
-
-    /// Gets the [`PtrMut`] to the start of the underlying buffer.
     ///
     /// # Safety:
     /// The caller must ensure that the `UnsafeBlob` is allocated.
     #[inline]
-    pub unsafe fn get_ptr_mut_unchecked(&self) -> PtrMut<'_> {
+    pub unsafe fn get_ptr_mut(&self) -> PtrMut<'_> {
         debug_assert!(
             self.is_allocated(),
             "UnsafeBlob should be initalized before attempting to access it's buffer"
@@ -151,6 +139,7 @@ impl UnsafeBlob {
     ///
     /// # Safety
     /// The caller must ensure the following:
+    /// - the `UnsafeBlob` is allocated.
     /// - `index` < `len`.
     ///
     /// *`len` refers to the length of the `UnsafeBlob`; the number of elements
@@ -166,13 +155,14 @@ impl UnsafeBlob {
         // SAFETY:
         // - The caller ensures `index` fits inside the buffer's allocation and the blob is allocated.
         // - `elem_size` is the size of the stored element's errased type, so multiplying preserves alignement.
-        unsafe { self.get_ptr_unchecked().byte_add(index * elem_size) }
+        unsafe { self.get_ptr().byte_add(index * elem_size) }
     }
 
     /// Mutably borrows the element at `index`, with no bounds checking.
     ///
     /// # Safety
     /// The caller must ensure the following:
+    /// - the `UnsafeBlob` is allocated.
     /// - `index` < `len`.
     ///
     /// *`len` refers to the length of the `UnsafeBlob`; the number of elements
@@ -188,11 +178,11 @@ impl UnsafeBlob {
         // SAFETY:
         // - The caller ensures `index` fits inside the buffer's allocation and the blob is allocated.
         // - `elem_size` is the size of the stored element's errased type, so multiplying preserves alignement.
-        unsafe { self.get_ptr_mut_unchecked().byte_add(index * elem_size) }
+        unsafe { self.get_ptr_mut().byte_add(index * elem_size) }
     }
 
     /// Get a slice of elements from the `UnsafeBlob`, `slice_len` elements long.
-    /// To get a slice of the whole Blob's contents, put the `len` of the [`UnsafeBlob`] into the `slice_len`.
+    /// To get a slice of the whole Blob's contents, put the `len` of the `UnsafeBlob` into the `slice_len`.
     ///
     /// # Safety
     /// The caller must ensure the following:
@@ -211,8 +201,14 @@ impl UnsafeBlob {
         }
     }
 
+    // endregion
+
+    // region: Allocation/Deallocation
+
     /// Allocate a buffer for the `UnsafeBlob`. Only use this when initializing the `UnsafeBlob`.
     /// If the `UnsafeBlob` has already been allocated, use [`Self::realloc_buffer`] instead.
+    ///
+    /// This method won't allocate if `self::is_zst`, instead will store a `NonNull::dangling` ptr.
     ///
     /// # Safety
     /// The caller must ensure that the `UnsafeBlob` must not have been already allocated.
@@ -223,19 +219,21 @@ impl UnsafeBlob {
     /// See [`GlobalAlloc::alloc`].
     #[inline]
     pub(super) unsafe fn alloc_buffer(&mut self, capacity: NonZeroUsize) {
-        debug_assert!(self.item_layout.size() > 0, "Size must be non zero");
         debug_assert!(
             !self.is_allocated(),
             "UnsafeBlob shouldn't be initalized more than once"
         );
 
-        // TODO: Only alloc if !ZST, if ZST, just store a dangling pointer
-        // SAFETY: item_layout has non-zero size and capacity > 0 so the array_layout will be valid.
-        let arr_layout = array_layout(&self.item_layout, capacity.into()).unwrap();
-        let ptr = unsafe { std::alloc::alloc(arr_layout) };
-        self.data = NonNull::new(ptr)
-            .unwrap_or_else(|| std::alloc::handle_alloc_error(arr_layout))
-            .into();
+        if !self.is_zst() {
+            // SAFETY: item_layout is not of a ZST and capacity > 0 so the array_layout will be valid.
+            let arr_layout = array_layout(&self.item_layout, capacity.into()).unwrap();
+            let ptr = unsafe { std::alloc::alloc(arr_layout) };
+            self.data = NonNull::new(ptr)
+                .unwrap_or_else(|| std::alloc::handle_alloc_error(arr_layout))
+                .into();
+        } else {
+            self.data = Some(fulmen_ptr::util::dangling_from_layout(self.item_layout));
+        }
     }
 
     /// Reallocate the internal buffer buffer of the [`UnsafeBlob`].
@@ -255,25 +253,27 @@ impl UnsafeBlob {
             self.is_allocated(),
             "UnsafeBlob should be initalized before attempting to reallocate it"
         );
-        debug_assert!(
-            new_capacity > capacity,
-            "New capacity should be greater than the previous one when reallocating an UnsafeBlob"
-        );
-        // TODO: Only realloc if !ZST
 
-        // SAFETY: was allocated beforehand so the array_layouts will be valid.
-        let arr_layout = array_layout(&self.item_layout, capacity.into()).unwrap();
-        let new_arr_layout = array_layout(&self.item_layout, new_capacity.into()).unwrap();
+        if !self.is_zst() {
+            debug_assert!(
+                new_capacity > capacity,
+                "New capacity should be greater than the previous one when reallocating an UnsafeBlob"
+            );
 
-        // SAFETY: `ptr` was allocated previouslly, so it's valid. This also implies that `item_layout` is non-zero.
-        let new_ptr = unsafe {
-            let ptr = self.data.unwrap().as_ptr();
-            std::alloc::realloc(ptr, arr_layout, new_arr_layout.size())
-        };
+            // SAFETY: was allocated beforehand so the array_layouts will be valid.
+            let arr_layout = array_layout(&self.item_layout, capacity.into()).unwrap();
+            let new_arr_layout = array_layout(&self.item_layout, new_capacity.into()).unwrap();
 
-        self.data = NonNull::new(new_ptr)
-            .unwrap_or_else(|| std::alloc::handle_alloc_error(arr_layout))
-            .into();
+            // SAFETY: `ptr` was allocated previouslly, so it's valid. And we checked for zst so `item_layout` is valid.
+            let new_ptr = unsafe {
+                let ptr = self.data.unwrap().as_ptr();
+                std::alloc::realloc(ptr, arr_layout, new_arr_layout.size())
+            };
+
+            self.data = NonNull::new(new_ptr)
+                .unwrap_or_else(|| std::alloc::handle_alloc_error(arr_layout))
+                .into();
+        }
     }
 
     /// Clears the internal buffer, dropping all the elements inside of it.
@@ -305,11 +305,7 @@ impl UnsafeBlob {
                 // - 0 <= `i` < `len`, so `i * elem_size` will be inside the buffer's allocation.
                 // - `elem_size` is the size of the stored element's errased type, so multiplying preserves alignement.
                 // - its's safe to `promote()` the pointer, as it will be left unreachable.
-                let element_ptr = unsafe {
-                    self.get_ptr_mut_unchecked()
-                        .byte_add(i * elem_size)
-                        .promote()
-                };
+                let element_ptr = unsafe { self.get_ptr_mut().byte_add(i * elem_size).promote() };
                 // SAFETY: `element` was stored inside the `UnsafeBlob`, so it's type must match that of `drop_fn`.
                 unsafe { drop_fn(element_ptr) };
             }
@@ -340,12 +336,17 @@ impl UnsafeBlob {
                 "Buffer was allocated but capacity doesn't match."
             );
 
-            // TODO: Only drop if !ZST
             self.clear_buffer(len);
-            let arr_layout = array_layout(&self.item_layout, capacity).unwrap();
-            std::alloc::dealloc(self.data.unwrap().as_ptr(), arr_layout);
+            if !self.is_zst() {
+                let arr_layout = array_layout(&self.item_layout, capacity).unwrap();
+                std::alloc::dealloc(self.data.unwrap().as_ptr(), arr_layout);
+            }
         }
     }
+
+    // endregion
+
+    // region: Element logic
 
     /// Drops the element of the `UnsafeBlob` at `index`.
     ///
@@ -446,4 +447,6 @@ impl UnsafeBlob {
     pub unsafe fn swap_remove_drop_unchecked(&mut self, index: usize, last_index: usize) {
         todo!();
     }
+
+    // endregion
 }

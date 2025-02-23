@@ -72,10 +72,10 @@ checksum = "8f68f53c83ab957f72c32642f3868eec03eb974d1fb82e453128456482613d36"
 
 [[package]]
 name = "blob"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "fulmen_ptr",
- "thiserror 2.0.11",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

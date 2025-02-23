@@ -21,20 +21,25 @@ fn localhost_ip() -> Ipv4Addr {
 
 #[test]
 fn storage_and_retrieval_test() {
-    let mut blobs: HashMap<&'static str, Option<Blob>> = HashMap::new();
-    blobs.insert("IPv4", Blob::from(localhost_ip()).ok());
-    blobs.insert("My", Blob::from(MyStruct { field: 30}).ok());
-    blobs.insert("ZST", Blob::new::<()>().ok());
+    let mut blobs: HashMap<&'static str, Blob> = HashMap::new();
+    blobs.insert("IPv4", Blob::from(localhost_ip()));
+    blobs.insert("My", Blob::from(MyStruct { field: 30}));
+    blobs.insert("ZST", Blob::new::<()>());
 
-    assert!(blobs["IPv4"].is_some());
-    assert!(blobs["My"].is_some());
-    assert!(blobs["ZST"].is_none());
+    // Assert allocatino
+    assert_eq!(true, blobs["IPv4"].has_value());
+    assert_eq!(true, blobs["My"].has_value());
+    assert_eq!(false, blobs["ZST"].has_value());
 
-    // Extract values
-    let data = blobs["IPv4"].as_ref().unwrap().downcast_ref::<Ipv4Addr>().unwrap();
+    // IPv4
+    let data = blobs["IPv4"].downcast_ref::<Ipv4Addr>().unwrap();
     assert_eq!(data.octets(), localhost_ip().octets());
 
-    // Extract values
-    let data = blobs["My"].as_ref().unwrap().downcast_ref::<MyStruct>().unwrap();
+    // MyStruct
+    let data = blobs["My"].downcast_ref::<MyStruct>().unwrap();
     assert_eq!(data.field, 30);
+
+    // ZST
+    let data = blobs["ZST"].downcast_ref::<()>();
+    assert_eq!(Err(Error::UninitializedBlob), data);
 }

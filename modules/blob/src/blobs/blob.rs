@@ -18,27 +18,10 @@ impl Blob {
     ///
     /// The `Blob` will be lazily allocated untill a value is stored inside of it.
     #[inline]
-    pub const fn new<T: Sized>() -> Result<Blob> {
-        let layout = Layout::new::<T>();
-        if layout.size() == 0 {
-            return Err(Error::ZeroSizedLayout);
-        }
-
-        // SAFETY: We just checked that `T` is not a `ZST`.
-        Ok(unsafe { Self::new_unchecked::<T>() })
-    }
-
-    /// Constructs a new, empty `Blob` for the type `T`.
-    ///
-    /// The `Blob` will be lazily allocated untill a value is stored inside of it.
-    ///
-    /// # Safety:
-    /// The caller must ensure that `T` is not a `ZST`.
-    #[inline]
-    pub const unsafe fn new_unchecked<T: Sized>() -> Blob {
+    pub const fn new<T: Sized>() -> Blob {
         // SAFETY: caller ensures that the stored value is not a `ZST`.
         // SAFETY: the `layout` and `drop_fn` are coming from a valid Rust type.
-        Self::with_layout_unchecked(Layout::new::<T>(), fulmen_ptr::get_drop_fn::<T>())
+        unsafe { Self::with_layout_unchecked(Layout::new::<T>(), fulmen_ptr::get_drop_fn::<T>()) }
     }
 
     /// Constructs a new, empty `Blob` for the specified `layout`.
@@ -69,30 +52,16 @@ impl Blob {
 
     /// Constructs a new `Blob` from the specified value of type `T`.
     #[inline]
-    pub fn from<T: Sized>(value: T) -> Result<Blob> {
-        let layout = Layout::new::<T>();
-        if layout.size() == 0 {
-            return Err(Error::ZeroSizedLayout);
-        }
-
-        // SAFETY: We just checked that `T` is not a `ZST`.
-        Ok(unsafe { Self::from_unchecked::<T>(value) })
-    }
-
-    /// Constructs a new `Blob` from the specified value of type `T`.
-    ///
-    /// # Safety:
-    /// The caller must ensure that `T` is not a `ZST`.
-    #[inline]
-    pub unsafe fn from_unchecked<T: Sized>(value: T) -> Blob {
-        // SAFETY: caller ensures that the stored value is not a `ZST`.
+    pub fn from<T: Sized>(value: T) -> Blob {
         // SAFETY: the `layout` and `drop_fn` are coming from a valid Rust type.
         let mut blob = Self {
-            data: UnsafeBlob::with_capacity_unchecked(
-                Layout::new::<T>(),
-                fulmen_ptr::get_drop_fn::<T>(),
-                Self::CAPACITY,
-            ),
+            data: unsafe {
+                UnsafeBlob::with_capacity_unchecked(
+                    Layout::new::<T>(),
+                    fulmen_ptr::get_drop_fn::<T>(),
+                    Self::CAPACITY,
+                )
+            },
         };
 
         OwnPtr::from(value, |ptr| {
@@ -107,7 +76,7 @@ impl Blob {
 
     /// Wether or not the `Blob` has been allocated.
     #[inline]
-    pub fn is_allocated(&self) -> bool {
+    pub fn has_value(&self) -> bool {
         self.data.is_allocated()
     }
 
@@ -137,7 +106,7 @@ impl Blob {
             "Layout of values stored on a Blob should match the Blob's layout"
         );
 
-        if !self.is_allocated() {
+        if !self.has_value() {
             // SAFETY: `Blob` was not allocated
             unsafe {
                 self.data
@@ -186,7 +155,12 @@ impl Blob {
     /// Gets the [`Ptr`] to the start of the underlying buffer.
     #[inline]
     pub fn get_ptr(&self) -> Option<Ptr<'_>> {
-        self.data.get_ptr()
+        if self.has_value() {
+            // SAFETY: We just checked that the buffer is allocated
+            Some(unsafe { self.data.get_ptr() })
+        } else {
+            None
+        }
     }
 
     /// Gets the [`Ptr`] to the start of the underlying buffer.
@@ -195,13 +169,18 @@ impl Blob {
     /// The caller must ensure that the `UnsafeBlob` is allocated.
     #[inline]
     pub unsafe fn get_ptr_unchecked(&self) -> Ptr<'_> {
-        self.data.get_ptr_unchecked()
+        self.data.get_ptr()
     }
 
     /// Gets the [`PtrMut`] to the start of the underlying buffer.
     #[inline]
     pub fn get_ptr_mut(&self) -> Option<PtrMut<'_>> {
-        self.data.get_ptr_mut()
+        if self.has_value() {
+            // SAFETY: We just checked that the buffer is allocated
+            Some(unsafe { self.data.get_ptr_mut() })
+        } else {
+            None
+        }
     }
 
     /// Gets the [`PtrMut`] to the start of the underlying buffer.
@@ -210,19 +189,19 @@ impl Blob {
     /// The caller must ensure that the `UnsafeBlob` is allocated.
     #[inline]
     pub unsafe fn get_ptr_mut_unchecked(&self) -> PtrMut<'_> {
-        self.data.get_ptr_mut_unchecked()
+        self.data.get_ptr_mut()
     }
 
     pub fn downcast_ref<T: Sized>(&self) -> Result<&T> {
-        if self.is_allocated() {
-            if self.check_layout::<T>() {
+        if self.check_layout::<T>() {
+            if self.has_value() {
                 // SAFETY: We checked layouts, but we can't be 100% sure
                 Ok(unsafe { self.get_ptr_unchecked().deref::<T>() })
             } else {
-                Err(Error::LayoutMistmatch)
+                Err(Error::UninitializedBlob)
             }
         } else {
-            Err(Error::UninitializedBlob)
+            Err(Error::LayoutMistmatch)
         }
     }
 
@@ -232,15 +211,15 @@ impl Blob {
     }
 
     pub fn downcast_mut<T: Sized>(&mut self) -> Result<&mut T> {
-        if self.is_allocated() {
-            if self.check_layout::<T>() {
+        if self.check_layout::<T>() {
+            if self.has_value() {
                 // SAFETY: We checked layouts, but we can't be 100% sure
                 Ok(unsafe { self.get_ptr_mut_unchecked().deref_mut::<T>() })
             } else {
-                Err(Error::LayoutMistmatch)
+                Err(Error::UninitializedBlob)
             }
         } else {
-            Err(Error::UninitializedBlob)
+            Err(Error::LayoutMistmatch)
         }
     }
 
@@ -252,7 +231,7 @@ impl Blob {
 
 impl Drop for Blob {
     fn drop(&mut self) {
-        let len = if self.is_allocated() { 1 } else { 0 };
+        let len = if self.has_value() { 1 } else { 0 };
 
         unsafe {
             self.data.drop(len, Self::CAPACITY);
@@ -263,34 +242,22 @@ impl Drop for Blob {
 #[cfg(test)]
 mod tests {
     use super::Blob;
+    use crate::{Error, Result};
     use core::alloc::Layout;
     use std::str::FromStr;
 
     #[test]
     fn new_blob() {
-        let _ = Blob::new::<&str>().unwrap();
-        let blob = Blob::new::<u32>().unwrap();
-        assert_eq!(false, blob.is_allocated());
+        let blob = Blob::new::<&str>();
+        assert_eq!(false, blob.has_value());
+        let blob = Blob::new::<u32>();
+        assert_eq!(false, blob.has_value());
     }
 
     #[test]
-    #[should_panic]
     fn new_blob_zst() {
-        let _ = Blob::new::<()>().unwrap();
-    }
-
-    struct PanicOnDrop(u8);
-    impl Drop for PanicOnDrop {
-        fn drop(&mut self) {
-            panic!("A 'PanicOnDrop' was dropped");
-        }
-    }
-
-    #[test]
-    #[should_panic]
-    #[cfg(debug_assertions)]
-    fn new_unchecked_blob_zst() {
-        let _ = unsafe { Blob::new_unchecked::<()>() };
+        let blob = Blob::new::<()>();
+        assert_eq!(false, blob.has_value())
     }
 
     #[test]
@@ -299,7 +266,7 @@ mod tests {
         let layout = Layout::new::<u32>();
 
         let blob = unsafe { Blob::with_layout_unchecked(layout, None) };
-        assert_eq!(false, blob.is_allocated());
+        assert_eq!(false, blob.has_value());
     }
 
     const LOCALHOST_IP: &str = "127.0.0.1";
@@ -309,24 +276,29 @@ mod tests {
         use std::net::Ipv4Addr;
         let _localhost = Ipv4Addr::from_str(LOCALHOST_IP).unwrap();
 
-        let blob = Blob::from(_localhost).unwrap();
+        let blob = Blob::from(_localhost);
 
-        assert_eq!(true, blob.is_allocated());
+        assert_eq!(true, blob.has_value());
         assert_eq!(Layout::new::<Ipv4Addr>(), blob.layout());
     }
 
+    struct PanicOnDrop;
+    impl Drop for PanicOnDrop {
+        fn drop(&mut self) {
+            panic!("A 'PanicOnDrop' was dropped");
+        }
+    }
+
     #[test]
-    fn new_no_panic() {
-        let blob = Blob::new::<PanicOnDrop>().unwrap();
-        drop(blob);
+    fn new_no_drop() {
+        let blob = Blob::new::<PanicOnDrop>();
     }
 
     #[test]
     #[should_panic(expected = "A 'PanicOnDrop' was dropped")]
-    fn new_panic_on_drop() {
-        let mut blob = Blob::new::<PanicOnDrop>().unwrap();
-        blob.replace(PanicOnDrop(0_u8));
-        drop(blob);
+    fn new_drop() {
+        let mut blob = Blob::new::<PanicOnDrop>();
+        blob.replace(PanicOnDrop);
     }
 
     #[test]
@@ -334,9 +306,9 @@ mod tests {
         use std::net::Ipv4Addr;
         let _localhost = Ipv4Addr::from_str(LOCALHOST_IP).unwrap();
 
-        let blob = Blob::from(_localhost).unwrap();
+        let blob = Blob::from(_localhost);
 
-        assert_eq!(true, blob.is_allocated());
+        assert_eq!(true, blob.has_value());
 
         let layout = Layout::new::<Ipv4Addr>();
         assert_eq!(layout, blob.layout());
@@ -348,17 +320,27 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    fn downcast_zst() {
+        let blob = Blob::from(());
+        assert_eq!(true, blob.has_value());
+
+        // Recover value
+        let _ = blob.downcast_ref::<()>().unwrap();
+        let data = unsafe { blob.downcast_ref_unchecked::<()>() };
+    }
+
+    #[test]
+    #[should_panic(expected = "UninitializedBlob")]
     fn downcast_uninit() {
-        let blob = Blob::new::<u32>().unwrap();
+        let blob = Blob::new::<u32>();
         let _: &u32 = blob.downcast_ref::<u32>().unwrap();
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "LayoutMistmatch")]
     fn downcast_type_missmatch() {
         use std::net::Ipv4Addr;
-        let blob = Blob::new::<u32>().unwrap();
+        let blob = Blob::new::<u32>();
         let _ = blob.downcast_ref::<Ipv4Addr>().unwrap();
     }
 }
