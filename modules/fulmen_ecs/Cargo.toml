@@ -8,6 +8,8 @@ edition = "2021"
 
 [dependencies]
 # Modules
+fulmen_ptr = { path = "../fulmen_ptr" }
+blob = { path = "../blob" }
 
 # Logging
 thiserror = { workspace = true }

@@ -1,12 +1,13 @@
+use crate::resource::Resource;
+use crate::storage::Storages;
+use crate::utils::TypeIdMap;
+use crate::world::World;
+
+use fulmen_ptr::DropFn;
+
 use std::alloc;
 use std::any::TypeId;
 use std::{mem, ptr::NonNull};
-
-use crate::resource::Resource;
-use crate::storage::Storage;
-use crate::world::World;
-
-use crate::utils::TypeIdMap;
 
 /// A value used to uniquelly identify the type of a [`Component`]/[`Resource`](crate::Resource).
 ///
@@ -88,7 +89,7 @@ pub struct ComponentInfo {
 
 impl ComponentInfo {
     pub(crate) fn new(id: ComponentId, definition: ComponentDef) -> Self {
-        Self { id, definition,  }
+        Self { id, definition }
     }
 
     #[inline]
@@ -110,6 +111,11 @@ impl ComponentInfo {
     pub fn layout(&self) -> alloc::Layout {
         self.definition.layout
     }
+
+    #[inline]
+    pub fn drop_fn(&self) -> Option<DropFn> {
+        self.definition.drop_fn
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -117,6 +123,7 @@ pub struct ComponentDef {
     type_id: TypeId,
     storage_type: StorageType,
     layout: alloc::Layout,
+    drop_fn: Option<DropFn>,
 }
 
 impl ComponentDef {
@@ -125,6 +132,7 @@ impl ComponentDef {
             type_id: TypeId::of::<T>(),
             storage_type: T::STORAGE_TYPE,
             layout: alloc::Layout::new::<T>(),
+            drop_fn: fulmen_ptr::get_drop_fn::<T>(),
         }
     }
 
@@ -133,6 +141,7 @@ impl ComponentDef {
             type_id: TypeId::of::<R>(),
             storage_type: StorageType::Table,
             layout: alloc::Layout::new::<R>(),
+            drop_fn: fulmen_ptr::get_drop_fn::<R>(),
         }
     }
 }
@@ -147,7 +156,7 @@ pub struct Components {
 
 impl Components {
     #[inline]
-    pub fn register_component<T: Component>(&mut self, storage: &mut Storage) -> ComponentId {
+    pub fn register_component<T: Component>(&mut self, storage: &mut Storages) -> ComponentId {
         // Get the unique id for the Type
         let type_id = TypeId::of::<T>();
 
