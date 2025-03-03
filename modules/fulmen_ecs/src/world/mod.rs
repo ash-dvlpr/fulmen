@@ -77,7 +77,9 @@ impl World {
             .fetch_resource_storage(id, &mut self.components);
 
         // SAFETY: the caller ensures that `value` and `id` refers to the same value.
-        unsafe { store.insert_data(ptr); }
+        unsafe {
+            store.insert_data(ptr);
+        }
     }
 
     // endregion

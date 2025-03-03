@@ -1,6 +1,6 @@
 // --- Modules
-pub mod error;
 pub(crate) mod blobs;
+pub mod error;
 
 // --- API Flattening
 pub use blobs::Blob;

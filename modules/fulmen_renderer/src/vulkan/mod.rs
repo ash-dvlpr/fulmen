@@ -203,7 +203,9 @@ impl VulkanRenderer {
                 .pfn_user_callback(Some(vk_validation_debug_utils_callback));
 
             #[cfg(feature = "debug_logging")]
-            trace!("- Loading the DebugUtils Ext Loader (debug_utils::Instance) and creating the Debug Utils Messenger");
+            trace!(
+                "- Loading the DebugUtils Ext Loader (debug_utils::Instance) and creating the Debug Utils Messenger"
+            );
             debug_utils_loader = debug_utils::Instance::new(&entry, &instance);
             debug_callback = unsafe {
                 debug_utils_loader.create_debug_utils_messenger(&debug_create_info, None)?

@@ -5,5 +5,5 @@ use resource::ResourceStorage;
 #[derive(Default)]
 pub struct Storages {
     pub(crate) resources: ResourceStorage, // Set [ComponentId -> Data]
-    // TODO: Resource+!Send 
+                                           // TODO: Resource+!Send
 }

@@ -67,7 +67,6 @@ impl App {
                 }
             };
 
-
             let _result = VulkanRenderer::new();
             self.renderer = if let Err(_error) = _result {
                 #[cfg(feature = "logging")]

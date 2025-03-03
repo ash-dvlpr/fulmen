@@ -11,7 +11,7 @@ pub struct ResourceStorage {
 
 impl ResourceStorage {
     /// Fetches the underlying storage for a given [`ComponentId`] based on it's registered [`ComponentDef`].
-    /// 
+    ///
     /// If there was no storage registered for that [`ComponentId`]
     pub fn fetch_resource_storage(
         &mut self,

@@ -1,7 +1,7 @@
 // --- Modules
-mod unsafe_blob;
 pub mod blob;
+mod unsafe_blob;
 
 // --- API Flattening
-use unsafe_blob::UnsafeBlob;
 pub use blob::Blob;
+use unsafe_blob::UnsafeBlob;

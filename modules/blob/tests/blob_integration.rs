@@ -23,7 +23,7 @@ fn localhost_ip() -> Ipv4Addr {
 fn storage_and_retrieval_test() {
     let mut blobs: HashMap<&'static str, Blob> = HashMap::new();
     blobs.insert("IPv4", Blob::from(localhost_ip()));
-    blobs.insert("My", Blob::from(MyStruct { field: 30}));
+    blobs.insert("My", Blob::from(MyStruct { field: 30 }));
     blobs.insert("ZST", Blob::new::<()>());
 
     // Assert allocatino
