@@ -209,9 +209,10 @@ impl<'a> OwnPtr<'a> {
     /// Consumes a value and creates an [`OwningPtr`] to it while ensuring a double drop does not happen.
     #[inline]
     pub fn from<T, R, F: FnOnce(OwnPtr<'_>) -> R>(value: T, func: F) -> R {
+        let mut val = ManuallyDrop::new(value);
         // SAFETY: The value behind the pointer will not get dropped or observed later,
         // so it's safe to promote it to an owning pointer.
-        func(unsafe { Self::from_internal(&mut ManuallyDrop::new(value)) })
+        func(unsafe { Self::from_internal(&mut val) })
     }
 
     /// Consumes the `OwnPtr` to obtain ownership of the underlying data of type `T`.
