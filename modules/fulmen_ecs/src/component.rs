@@ -149,7 +149,7 @@ impl ComponentDef {
 /// Handles all the info about the [`Component`]s of a [`World`]
 #[derive(Debug, Default)]
 pub struct Components {
-    components: Vec<ComponentInfo>,
+    component_infos: Vec<ComponentInfo>,
     comp_indeces: TypeIdMap<ComponentId>,
     res_indeces: TypeIdMap<ComponentId>,
 }
@@ -163,18 +163,18 @@ impl Components {
         // Look up if the component has already been registered, or register it if it wasn't.
         let comp_id = {
             let Components {
-                components,
+                component_infos,
                 comp_indeces,
                 ..
             } = self;
 
             *comp_indeces.entry(type_id).or_insert_with(|| {
-                let id = ComponentId::new(components.len());
+                let id = ComponentId::new(component_infos.len());
                 let info = ComponentInfo::new(id, ComponentDef::new::<T>());
 
                 // if info.definition.storage_type == StorageType::SparseSet { }
                 // TODO: Initialize a SparseSet for the Type if necessary in the data store
-                components.push(info);
+                component_infos.push(info);
 
                 // TODO; Handle recursive required components (aka parenting data)
 
@@ -192,16 +192,16 @@ impl Components {
         // Look up if the component has already been registered, or register it if it wasn't.
         let comp_id = {
             let Components {
-                components,
+                component_infos,
                 res_indeces,
                 ..
             } = self;
 
             *res_indeces.entry(type_id).or_insert_with(|| {
-                let id = ComponentId::new(components.len());
+                let id = ComponentId::new(component_infos.len());
                 let info = ComponentInfo::new(id, ComponentDef::new_resource::<R>());
 
-                components.push(info);
+                component_infos.push(info);
                 id
             })
         };
@@ -211,7 +211,7 @@ impl Components {
 
     #[inline]
     pub fn get_info(&self, id: ComponentId) -> Option<&ComponentInfo> {
-        self.components.get(id.index())
+        self.component_infos.get(id.index())
     }
 
     /// Equivalent of [`Components::component_id()`].
