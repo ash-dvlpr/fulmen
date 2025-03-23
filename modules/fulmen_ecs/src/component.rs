@@ -7,7 +7,6 @@ use fulmen_ptr::DropFn;
 
 use std::alloc;
 use std::any::TypeId;
-use std::{mem, ptr::NonNull};
 
 /// A value used to uniquelly identify the type of a [`Component`]/[`Resource`](crate::Resource).
 ///
@@ -54,24 +53,6 @@ pub trait Component: Send + Sync + 'static {
     //     _required_components: &mut RequiredComponents,
     //     _inheritance_depth: u16,
     // ) {}
-}
-
-#[macro_export]
-macro_rules! impl_component {
-    ( $t:ty ) => {
-        impl_component!($t, fulmen_ecs::component::StorageType::SparseSet);
-    };
-    ( $t:ty, $storage_type:ident ) => {
-        impl fulmen_ecs::component::Component for $t {
-            const STORAGE_TYPE: fulmen_ecs::component::StorageType =
-                fulmen_ecs::component::StorageType::$storage_type;
-        }
-    };
-    ( $t:ty, $storage_type:expr ) => {
-        impl fulmen_ecs::component::Component for $t {
-            const STORAGE_TYPE: fulmen_ecs::component::StorageType = $storage_type;
-        }
-    };
 }
 
 #[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]

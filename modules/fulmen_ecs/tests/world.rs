@@ -1,12 +1,12 @@
-mod common;
-use common::MyRes;
+use fulmen_ecs::*;
 
-use fulmen_ecs::World;
+#[allow(dead_code)]
+pub struct MyRes(pub usize);
+fulmen_ecs::impl_resource!(MyRes);
 
 #[test]
 fn test_resources() {
     let mut world = World::default();
 
-    // world.register_component::<MyRes>();
-    // world.add_resource(MyRes(32));
+    world.insert_resource(MyRes(32));
 }

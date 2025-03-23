@@ -1,4 +1,5 @@
 // --- Modules
+pub mod macros;
 pub mod component;
 pub mod resource;
 pub mod storage;
