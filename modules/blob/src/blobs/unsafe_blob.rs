@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use fulmen_ptr::{util::array_layout, *};
 
 use core::cell::UnsafeCell;
@@ -30,9 +32,9 @@ impl UnsafeBlob {
     /// # Safetly
     /// The caller must ensure the following:
     /// - `item_layout` matches that of the values being stored inside of the Blob and has propper alignement.
-    /// This also implies that the `item_layout` matches that of the values passed to `drop_fn`.
+    ///   This also implies that the `item_layout` matches that of the values passed to `drop_fn`.
     /// - `drop_fn` should be safe to call with any value stored inside the Blob,
-    /// as long as the `drop_fn` corresponds to the errased type of the stored values.
+    ///   as long as the `drop_fn` corresponds to the errased type of the stored values.
     #[inline]
     #[must_use]
     pub const unsafe fn with_layout_unchecked(
@@ -57,9 +59,9 @@ impl UnsafeBlob {
     /// # Safetly
     /// The caller must ensure the following:
     /// - `item_layout` matches that of the values being stored inside of the Blob and has propper alignement.
-    /// This also implies that the `item_layout` matches that of the values passed to `drop_fn`.
+    ///   This also implies that the `item_layout` matches that of the values passed to `drop_fn`.
     /// - `drop_fn` should be safe to call with any value stored inside the Blob,
-    /// as long as the `drop_fn` corresponds to the errased type of the stored values.
+    ///   as long as the `drop_fn` corresponds to the errased type of the stored values.
     #[inline]
     #[must_use]
     pub unsafe fn with_capacity_unchecked(
@@ -72,7 +74,7 @@ impl UnsafeBlob {
 
         if capacity > 0 {
             // SAFETY: we just checked that capacity is non zero
-            blob.alloc_buffer(NonZeroUsize::new_unchecked(capacity));
+            unsafe { blob.alloc_buffer(NonZeroUsize::new_unchecked(capacity)) };
         }
 
         blob
@@ -332,10 +334,13 @@ impl UnsafeBlob {
                 "Buffer was allocated but capacity doesn't match."
             );
 
-            self.clear_buffer(len);
-            if !self.is_zst() {
-                let arr_layout = array_layout(&self.item_layout, capacity).unwrap();
-                std::alloc::dealloc(self.data.unwrap().as_ptr(), arr_layout);
+            // SAFETY: The caller ensures that `len` and `capacity` are correct.
+            unsafe {
+                self.clear_buffer(len);
+                if !self.is_zst() {
+                    let arr_layout = array_layout(&self.item_layout, capacity).unwrap();
+                    std::alloc::dealloc(self.data.unwrap().as_ptr(), arr_layout);
+                }
             }
         }
     }
@@ -356,8 +361,9 @@ impl UnsafeBlob {
         if let Some(drop_fn) = self.drop_fn {
             // Set `self.drop_fn` to `None` before dropping any values to avoid double dropping values in case of an unwind.
             self.drop_fn = None;
-            // SAFETY: It's safe to `promote()` the pointer, as it will be left unreachable.
-            let element_ptr = self.get_unchecked_mut(index).promote();
+            // SAFETY: It's safe to `promote()` the pointer, as it will be left unreachable,
+            // and the caller ensures that the `index` is valid.
+            let element_ptr = unsafe { self.get_unchecked_mut(index).promote() };
             // SAFETY: `element` was stored inside the `UnsafeBlob`, so it's safe to call `drop_fn` on it.
             unsafe { drop_fn(element_ptr) };
             self.drop_fn = Some(drop_fn);
@@ -378,12 +384,16 @@ impl UnsafeBlob {
             "UnsafeBlob should be initalized before attempting to modify it"
         );
 
-        let destination = self.get_unchecked_mut(index);
-        core::ptr::copy::<u8>(
-            value.as_ptr(),
-            destination.as_ptr(),
-            self.item_layout.size(),
-        );
+        // SAFETY: The caller ensures that the `index` is valid
+        let destination = unsafe { self.get_unchecked_mut(index) };
+        // SAFETY: It's safe to copy
+        unsafe {
+            core::ptr::copy::<u8>(
+                value.as_ptr(),
+                destination.as_ptr(),
+                self.item_layout.size(),
+            );
+        }
     }
 
     /// Replaces the value at `index` with `value`, dropping the old value.
@@ -407,7 +417,8 @@ impl UnsafeBlob {
 
         // Get the raw ptrs to the source (value) and destination (buffer)
         let ptr_src = value.as_ptr();
-        let ptr_dest = NonNull::from(self.get_unchecked_mut(index));
+        // SAFETY:  The caller ensures that the `index` is valid.
+        let ptr_dest = unsafe { NonNull::from(self.get_unchecked_mut(index)) };
 
         // Caller ensures the `Blob` has been allocated.
         if let Some(drop_fn) = self.drop_fn {
@@ -434,12 +445,12 @@ impl UnsafeBlob {
     }
 
     #[inline]
-    pub unsafe fn swap_remove_unchecked(&mut self, index: usize, last_index: usize) -> OwnPtr<'_> {
+    pub unsafe fn swap_remove_unchecked(&mut self, _index: usize, _last_index: usize) -> OwnPtr<'_> {
         todo!();
     }
 
     #[inline]
-    pub unsafe fn swap_remove_drop_unchecked(&mut self, index: usize, last_index: usize) {
+    pub unsafe fn swap_remove_drop_unchecked(&mut self, _index: usize, _last_index: usize) {
         todo!();
     }
 

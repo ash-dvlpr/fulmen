@@ -34,9 +34,9 @@ impl Blob {
     /// # Safetly
     /// The caller must ensure the following:
     /// - `layout` matches that of the values being stored inside of the Blob and has propper alignement.
-    /// This also implies that the `layout` matches that of the values passed to `drop_fn`.
+    ///   This also implies that the `layout` matches that of the values passed to `drop_fn`.
     /// - `drop_fn` should be safe to call with any value stored inside the Blob,
-    /// as long as the `drop_fn` corresponds to the errased type of the stored values.
+    ///   as long as the `drop_fn` corresponds to the errased type of the stored values.
     #[inline]
     pub const unsafe fn with_layout_unchecked(
         layout: Layout,
@@ -161,7 +161,8 @@ impl Blob {
     /// The caller must ensure that the `UnsafeBlob` is allocated.
     #[inline]
     pub unsafe fn get_ptr_unchecked(&self) -> Ptr<'_> {
-        self.data.get_ptr()
+        // SAFETY: The caller must ensure that the `UnsafeBlob` is allocated.
+        unsafe { self.data.get_ptr() }
     }
 
     /// Gets the [`PtrMut`] to the start of the underlying buffer.
@@ -181,7 +182,8 @@ impl Blob {
     /// The caller must ensure that the `UnsafeBlob` is allocated.
     #[inline]
     pub unsafe fn get_ptr_mut_unchecked(&self) -> PtrMut<'_> {
-        self.data.get_ptr_mut()
+        // SAFETY: The caller must ensure that the `UnsafeBlob` is allocated.
+        unsafe { self.data.get_ptr_mut() }
     }
 
     pub fn downcast_ref<T: Sized>(&self) -> Result<&T> {
