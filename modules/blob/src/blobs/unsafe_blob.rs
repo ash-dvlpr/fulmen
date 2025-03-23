@@ -190,7 +190,7 @@ impl UnsafeBlob {
     /// *`len` refers to the length of the `UnsafeBlob`; the number of elements
     /// that have been initialized, and thus are safe to read.*
     #[inline]
-    pub unsafe fn get_slice<T>(&mut self, slice_len: usize) -> &[UnsafeCell<T>] {
+    pub unsafe fn get_slice<T>(&self, slice_len: usize) -> &[UnsafeCell<T>] {
         if let Some(ptr) = &self.data {
             unsafe {
                 core::slice::from_raw_parts::<UnsafeCell<T>>(ptr.as_ptr() as *const _, slice_len)
