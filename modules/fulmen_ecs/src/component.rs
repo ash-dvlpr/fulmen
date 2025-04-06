@@ -143,8 +143,8 @@ impl ComponentDef {
 #[derive(Debug, Default)]
 pub struct Components {
     component_infos: Vec<ComponentInfo>,
-    comp_indeces: TypeIdMap<ComponentId>,
-    res_indeces: TypeIdMap<ComponentId>,
+    comp_indices: TypeIdMap<ComponentId>,
+    res_indices: TypeIdMap<ComponentId>,
 }
 
 impl Components {
@@ -157,11 +157,11 @@ impl Components {
         let comp_id = {
             let Components {
                 component_infos,
-                comp_indeces,
+                comp_indices,
                 ..
             } = self;
 
-            *comp_indeces.entry(type_id).or_insert_with(|| {
+            *comp_indices.entry(type_id).or_insert_with(|| {
                 let id = ComponentId::new(component_infos.len());
                 let info = ComponentInfo::new(id, ComponentDef::new::<T>());
 
@@ -186,11 +186,11 @@ impl Components {
         let comp_id = {
             let Components {
                 component_infos,
-                res_indeces,
+                res_indices,
                 ..
             } = self;
 
-            *res_indeces.entry(type_id).or_insert_with(|| {
+            *res_indices.entry(type_id).or_insert_with(|| {
                 let id = ComponentId::new(component_infos.len());
                 let info = ComponentInfo::new(id, ComponentDef::new_resource::<R>());
 
@@ -210,13 +210,13 @@ impl Components {
     /// Equivalent of [`Components::component_id()`].
     #[inline]
     pub fn get_id(&self, type_id: TypeId) -> Option<ComponentId> {
-        self.comp_indeces.get(&type_id).copied()
+        self.comp_indices.get(&type_id).copied()
     }
 
     /// Equivalent of [`Components::resource_id()`].
     #[inline]
     pub fn get_resource_id(&self, type_id: TypeId) -> Option<ComponentId> {
-        self.res_indeces.get(&type_id).copied()
+        self.res_indices.get(&type_id).copied()
     }
 
     #[inline]
