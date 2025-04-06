@@ -1,6 +1,6 @@
 use crate::resource::Resource;
 use crate::storage::Storages;
-use crate::utils::TypeIdMap;
+use crate::utils::{SparseSetIndex, TypeIdMap};
 use crate::world::World;
 
 use fulmen_ptr::DropFn;
@@ -23,7 +23,7 @@ use std::any::TypeId;
 /// * Having more than [`usize::MAX`] different registered [`Component`]s will result in the program crashing,
 ///   as that is the upper component limit.
 #[repr(transparent)]
-#[derive(Debug, Copy, Clone, Hash, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct ComponentId(pub usize);
 
 impl ComponentId {
@@ -35,6 +35,18 @@ impl ComponentId {
     #[inline]
     pub fn index(&self) -> usize {
         self.0
+    }
+}
+
+impl SparseSetIndex for ComponentId {
+    #[inline]
+    fn sparse_set_index(&self) -> usize {
+        self.index()
+    }
+
+    #[inline]
+    fn get_sparse_set_index(value: usize) -> Self {
+        Self(value)
     }
 }
 
