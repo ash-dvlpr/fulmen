@@ -252,3 +252,89 @@ impl<I: SparseSetIndex, V> SparseArray<I, V> {
         self.values.clear();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::SparseSet;
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+    #[repr(transparent)]
+    struct TestStruct(pub u32);
+
+    type SparseID = usize;
+    type TestSparseSet = SparseSet<SparseID, TestStruct>;
+
+    #[test]
+    fn new_sparse_set() {
+        let set = TestSparseSet::new();
+        assert!(set.is_empty());
+    }
+
+    #[test]
+    fn sparse_set_empty() {
+        let mut set = TestSparseSet::new();
+        assert!(set.is_empty());
+
+        set.insert(2, TestStruct(2));
+        assert!(!set.is_empty());
+
+        set.clear();
+        assert!(set.is_empty());
+    }
+
+    fn sum_all(set: &TestSparseSet) -> Option<u32> {
+        set.values().map(|v| v.0).reduce(|acc, v| acc + v)
+    }
+
+    fn as_slice(set: &TestSparseSet) -> &[u32] {
+        let slice = &set.dense[..];
+
+        // SAFETY: TestStruct is #[repr(transparent)] over u32, so layouts match
+        unsafe { std::slice::from_raw_parts(slice.as_ptr() as *const u32, slice.len()) }
+    }
+
+    #[test]
+    fn sparse_set_contains() {
+        let mut set = TestSparseSet::new();
+        assert!(!set.contains(2));
+
+        set.insert(2, TestStruct(2));
+        assert!(set.contains(2));
+    }
+
+    #[test]
+    fn sparse_set_internals() {
+        let mut set = TestSparseSet::new();
+
+        // Empty
+        assert_eq!(None, sum_all(&set));
+        assert_eq!(0, set.dense.len());
+        assert_eq!(0, set.indices.len());
+        assert_eq!(0, set.sparse.values.len());
+
+        // After some insertions
+        set.insert(4, TestStruct(4));
+        set.insert(0, TestStruct(0));
+        set.insert(1, TestStruct(1));
+
+        assert_eq!(Some(&2), set.sparse.get(1)); // Check value's index inside `sparse`
+
+        assert_eq!(Some(5), sum_all(&set));
+        assert_eq!(5, set.sparse.values.len());
+        assert_eq!([4, 0, 1], as_slice(&set));
+        assert_eq!([4, 0, 1], set.indices[..]);
+
+        // After some removals
+        assert_eq!(None, set.remove(10));
+        assert_eq!(Some(TestStruct(4)), set.remove(4));
+
+        assert_eq!(Some(&0), set.sparse.get(1)); // Check value's index inside `sparse`
+
+        assert_eq!(Some(1), sum_all(&set));
+        assert_eq!(5, set.sparse.values.len()); // Sparse keeps all the None values
+
+        // Check that the last value is now at the front
+        assert_eq!([1, 0], as_slice(&set));
+        assert_eq!([1, 0], set.indices[..]);
+    }
+}
