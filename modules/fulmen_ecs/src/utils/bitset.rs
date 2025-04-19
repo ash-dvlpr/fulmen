@@ -1,3 +1,4 @@
+use core::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 use core::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 
 #[cfg(target_pointer_width = "64")]
@@ -21,9 +22,11 @@ impl BitSet {
     /// Creates a new `BitSet` from a raw slice of `bits`.
     #[inline]
     pub fn from_raw_bits(bits: &[BitBlock]) -> BitSet {
-        BitSet {
+        let mut set = BitSet {
             bits: bits.to_vec(),
-        }
+        };
+        set.trim_trailing_zeros();
+        set
     }
 
     /// Calculates the index of the [`BitBlock`] that corresponds to the nth `bit`.
@@ -36,6 +39,18 @@ impl BitSet {
     #[inline(always)]
     const fn bit_index(bit: usize) -> usize {
         bit % BitBlock::BITS as usize
+    }
+
+    /// Bit manipulation code for [`Self::add`] and [`Self::add_all`].
+    #[inline(always)]
+    const fn set_bit(block: &mut BitBlock, bit: usize) {
+        *block |= 1 << Self::bit_index(bit);
+    }
+
+    /// Bit manipulation code for [`Self::remove`] and [`Self::remove_all`].
+    #[inline(always)]
+    const fn unset_bit(block: &mut BitBlock, bit: usize) {
+        *block &= !(1 << Self::bit_index(bit));
     }
 
     /// Returns `true` if the set has no [`BitBlocks`](`BitBlock`) allocated.
@@ -81,7 +96,7 @@ impl BitSet {
     #[inline]
     pub fn add(&mut self, bit: usize) {
         let block = self.get_or_insert_block(bit);
-        *block |= 1 << Self::bit_index(bit);
+        Self::set_bit(block, bit);
     }
 
     /// Adds several nth `bits` to the set.
@@ -90,27 +105,28 @@ impl BitSet {
         bits.iter().for_each(|bit| self.add(*bit));
     }
 
-    /// Removes the nth `bit` to the set.
-    #[inline(always)]
-    fn remove_internal(&mut self, bit: usize) {
-        let block = self.get_or_insert_block(bit);
-        *block &= !(1 << Self::bit_index(bit));
-    }
-
-    /// Removes the nth `bit` to the set.
+    /// Removes the nth `bit` from the set.
     #[inline]
     pub fn remove(&mut self, bit: usize) {
-        self.remove_internal(bit);
+        if let Some(block) = self.get_block_mut(bit) {
+            Self::unset_bit(block, bit);
+            self.trim_trailing_zeros();
+        }
     }
 
-    /// Adds several nth `bits` to the set.
+    /// Removes several nth `bits` from the set.
     #[inline]
     pub fn remove_all(&mut self, bits: &[usize]) {
-        bits.iter().for_each(|bit| self.remove_internal(*bit));
+        bits.iter().for_each(|bit| {
+            if let Some(block) = self.get_block_mut(*bit) {
+                Self::unset_bit(block, *bit);
+            }
+        });
+        self.trim_trailing_zeros();
     }
 
     /// Trims all the [`BitBlocks`](`BitBlock`) at the end of the `BitSet` that contain no values.
-    pub fn trim_trailing_zeros(&mut self) {
+    fn trim_trailing_zeros(&mut self) {
         while let Some(&0) = self.bits.last() {
             self.bits.pop();
         }
@@ -128,7 +144,41 @@ impl BitSet {
 
     /// Checks wether or not this `BitSet` contains all the bits on the `other` `BitSet`
     pub fn contains_all<'a, 'b>(&'a self, other: &'b BitSet) -> bool {
-        let len = todo!("implement bitset & bitset");
+        self & other == *other
+    }
+}
+
+impl PartialEq<BitSet> for BitSet {
+    fn eq(&self, other: &BitSet) -> bool {
+        self.bits == other.bits
+    }
+}
+
+impl Eq for BitSet {}
+
+impl PartialOrd for BitSet {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for BitSet {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let max_len = usize::max(self.bits.len(), other.bits.len());
+
+        // Compare from least to most significant `BitBlock`
+        for i in 0..max_len {
+            let a = self.bits.get(i).unwrap_or(&0);
+            let b = other.bits.get(i).unwrap_or(&0);
+
+            match a.cmp(b) {
+                Ordering::Equal => continue,
+                ord => return ord,
+            }
+        }
+
+        // If no different bits were found
+        Ordering::Equal
     }
 }
 
@@ -190,13 +240,12 @@ macro_rules! gen_binop_impls {
 gen_binop_impls!(BitSet[& &=] [()] [BitAnd](bitand) [BitAndAssign](bitand_assign));
 gen_binop_impls!(BitSet[| |=] [  ] [BitOr](bitor)   [BitOrAssign](bitor_assign));
 gen_binop_impls!(BitSet[^ ^=] [  ] [BitXor](bitxor) [BitXorAssign](bitxor_assign));
-
 // endregion
-
-// TODO: Impl PartialOrd + Ord for sorting bitsets into a binary heap for traversal and matching archetypes
 
 #[cfg(test)]
 mod tests {
+    use std::cmp::Ordering;
+
     use super::{BitBlock, BitSet};
 
     #[test]
@@ -254,7 +303,7 @@ mod tests {
         assert_eq!(2, set.block_count());
 
         set.remove_all(&[0, BitBlock::BITS as usize]);
-        assert_eq!(2, set.block_count());
+        assert_eq!(1, set.block_count());
         assert_eq!(false, set.contains(0));
         assert_eq!(false, set.contains(BitBlock::BITS as usize));
     }
@@ -264,7 +313,12 @@ mod tests {
         let mut set = BitSet::from_raw_bits(&[0b00000001, 0b00000001, 0, 0, 0b00000001]);
         assert_eq!(5, set.block_count());
 
-        set.remove_all(&[(BitBlock::BITS * 4) as usize]);
+        set.trim_trailing_zeros();
+        assert_eq!(5, set.block_count());
+
+        // Manually unset bit
+        let block = set.get_block_mut((BitBlock::BITS * 4) as usize).unwrap();
+        BitSet::unset_bit(block, (BitBlock::BITS * 4) as usize);
         assert_eq!(5, set.block_count());
 
         set.trim_trailing_zeros();
@@ -282,7 +336,10 @@ mod tests {
 
     #[test]
     fn contains_all() {
-        todo!();
+        let a = BitSet::from_raw_bits(&[0b10011001, 0b000000001]);
+        let b = BitSet::from_raw_bits(&[0b10011000]);
+
+        assert_eq!(true, a.contains_all(&b))
     }
 
     #[test]
@@ -391,5 +448,66 @@ mod tests {
         lhs ^= &rhs;
         assert_eq!(LHS ^ RHS, lhs.bits[0]);
         assert_eq!(RHS, rhs.bits[0]);
+    }
+
+    #[test]
+    fn test_eq_reflexive_invariant() {
+        let a = BitSet::from_raw_bits(&[0b00000001]);
+
+        assert!(a == a);
+    }
+
+    #[test]
+    fn test_eq_symetric_invariant() {
+        let a = BitSet::from_raw_bits(&[0b00000001]);
+        let b = BitSet::from_raw_bits(&[0b00000001]);
+
+        assert!(a == b && b == a);
+    }
+
+    #[test]
+    fn test_eq_transitive_invariant() {
+        let a = BitSet::from_raw_bits(&[0b00000001]);
+        let b = BitSet::from_raw_bits(&[0b00000001]);
+        let c = BitSet::from_raw_bits(&[0b00000001]);
+
+        assert!(a == b && b == c && c == a);
+    }
+
+    #[test]
+    fn test_ord_antisymetric_invariant() {
+        let a = BitSet::from_raw_bits(&[0b00000001]);
+        let b = BitSet::from_raw_bits(&[0b00000001]);
+        let c = BitSet::from_raw_bits(&[0b00000010]);
+
+        assert!(a <= b && b <= a);
+        assert!(a == b);
+
+        assert!(a <= c && !(c <= a));
+        assert!(a != c);
+    }
+
+    #[test]
+    fn test_ord_transitive_invariant() {
+        let a = BitSet::from_raw_bits(&[0b00000001]);
+        let b = BitSet::from_raw_bits(&[0b00000010]);
+        let c = BitSet::from_raw_bits(&[0b00000100]);
+
+        assert!(a < b && b < c);
+        assert!(a < c);
+    }
+
+    #[test]
+    fn test_ord_eq_consistency() {
+        let a = BitSet::from_raw_bits(&[0b00000001]);
+        let b = BitSet::from_raw_bits(&[0b00000001]);
+        let c = BitSet::from_raw_bits(&[0b00000010]);
+
+        assert!(a == b);
+        assert!(a.cmp(&b) == Ordering::Equal);
+
+        assert!(a != c);
+        assert!(a < c);
+        assert!(a.cmp(&c) == Ordering::Less)
     }
 }
