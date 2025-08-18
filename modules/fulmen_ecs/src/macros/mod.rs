@@ -8,7 +8,7 @@ macro_rules! impl_resource {
 #[macro_export]
 macro_rules! impl_component {
     ( $t:ty ) => {
-        impl_component!($t, fulmen_ecs::component::StorageType::SparseSet);
+        crate::impl_component!($t, fulmen_ecs::component::StorageType::SparseSet);
     };
     ( $t:ty, $storage_type:ident ) => {
         impl fulmen_ecs::component::Component for $t {
@@ -31,11 +31,11 @@ macro_rules! reverse_and_call {
         $m!{$($reversed),*}
     };
     ($m:ident [$first:tt $($rest:tt)*] $($reversed:tt)*) => {
-        reverse_and_call!{$m [$($rest)*] $first $($reversed)*}
+        crate::reverse_and_call!{$m [$($rest)*] $first $($reversed)*}
     };
 }
 
-// Generates variadic macro calls for
+// Generates variadic macro calls for a macro.
 //
 // Calls m!() with up to the specified number of params
 // to generate code for fake variadic implementations.
@@ -47,7 +47,7 @@ macro_rules! gen_variadic_macro_calls {
     };
     // 
     ($m: ident, $param: tt, $($rest_params: tt),*) => {
-        gen_variadic_macro_calls!{$m, $($rest_params),*}
-        reverse_and_call!{$m [$param $($rest_params)*]}
+        crate::gen_variadic_macro_calls!{$m, $($rest_params),*}
+        crate::reverse_and_call!{$m [$param $($rest_params)*]}
     };
 }

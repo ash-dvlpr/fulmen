@@ -1,7 +1,8 @@
+use super::{Component, StorageType};
+
 use crate::resource::Resource;
 use crate::storage::Storages;
 use crate::utils::{SparseSetIndex, TypeIdMap};
-use crate::world::World;
 
 use fulmen_ptr::DropFn;
 
@@ -10,15 +11,15 @@ use std::any::TypeId;
 
 /// A value used to uniquelly identify the type of a [`Component`]/[`Resource`](crate::Resource).
 ///
-/// A new `ComponentId` will be created for each `Component` or `Resource` type registered into a [`World`].
-/// This is done via the [`World::store_resource`](crate::World::store_resource)
-/// or [`World::register_component`](crate::World::register_component) methods.
+/// A new `ComponentId` will be created for each `Component` or `Resource` type registered into a [`World`](crate::World).
+/// This will be usually done via the [`World::register_component`](crate::World::register_component)
+/// or [`World::init_resource`](crate::World::init_resource) methods.
 ///
-/// `ComponentId` is used instead of [`TypeId`] to ensure that `ComponentId`s are incremental in natrure.
+/// `ComponentId` is used instead of [`TypeId`] to ensure they are incremental in nature.
 ///
 /// ## SAFETY
-/// * This value is only guaranteed to be unique inside the same [`World`],
-///   and thus using a `ComponentId` outside of it's respective [`World`] is undefined behaviour.
+/// * This value is only guaranteed to be unique inside the same [`World`](crate::World),
+///   and thus using a `ComponentId` outside of it's respective [`World`](crate::World) is undefined behaviour.
 ///
 /// * Having more than [`usize::MAX`] different registered [`Component`]s will result in the program crashing,
 ///   as that is the upper component limit.
@@ -48,30 +49,6 @@ impl SparseSetIndex for ComponentId {
     fn get_sparse_set_index(value: usize) -> Self {
         Self(value)
     }
-}
-
-pub trait Component: Send + Sync + 'static {
-    /// A constant indicating the storage type used for this component.
-    const STORAGE_TYPE: StorageType;
-
-    // /// Called when registering this component, allowing mutable access to its [`ComponentHooks`].
-    // fn register_component_hooks(_hooks: &mut ComponentHooks) {}
-
-    // /// Registers required components.
-    // fn register_required_components(
-    //     _component_id: ComponentId,
-    //     _components: &mut Components,
-    //     _storages: &mut Storages,
-    //     _required_components: &mut RequiredComponents,
-    //     _inheritance_depth: u16,
-    // ) {}
-}
-
-#[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
-pub enum StorageType {
-    #[default]
-    SparseSet, // Faster addition and removal
-    Table, // Faster iteration
 }
 
 #[derive(Debug, Clone)]
@@ -139,7 +116,7 @@ impl ComponentDef {
     }
 }
 
-/// Handles all the info about the [`Component`]s of a [`World`]
+/// Handles all the info about the [`Components`](`Component`) of a [`World`]
 #[derive(Debug, Default)]
 pub struct Components {
     component_infos: Vec<ComponentInfo>,
@@ -149,7 +126,7 @@ pub struct Components {
 
 impl Components {
     #[inline]
-    pub fn register_component<T: Component>(&mut self, storage: &mut Storages) -> ComponentId {
+    pub fn register_component<T: Component>(&mut self) -> ComponentId {
         // Get the unique id for the Type
         let type_id = TypeId::of::<T>();
 
@@ -165,8 +142,6 @@ impl Components {
                 let id = ComponentId::new(component_infos.len());
                 let info = ComponentInfo::new(id, ComponentDef::new::<T>());
 
-                // if info.definition.storage_type == StorageType::SparseSet { }
-                // TODO: Initialize a SparseSet for the Type if necessary in the data store
                 component_infos.push(info);
 
                 // TODO; Handle recursive required components (aka parenting data)

@@ -1,29 +1,43 @@
 use fulmen_ptr::OwnPtr;
 
 use crate::component::{Component, ComponentId, Components};
+use crate::entity::Entities;
 use crate::resource::Resource;
 use crate::storage::Storages;
+use crate::bundle::Bundles;
 
 pub struct World {
-    // pub(crate) entities: Entities, // Set of EntityIDs
-    pub(crate) components: Components, // Registered Data Types
-    pub(crate) storages: Storages,
+    /// Manages all the entities' lifespans.
+    pub(crate) entities: Entities, 
+    /// Registered Data Types.
+    pub(crate) components: Components, 
+    pub(crate) bundles: Bundles,
+    /// Registered sets of `Components`.
+    // pub(crate) archetypes: Archetypes, 
+    /// Handles all the data storage of the `World`.
+    pub(crate) storages: Storages, 
 }
 
 impl Default for World {
     fn default() -> Self {
         Self {
+            entities: Entities::default(),
             components: Components::default(),
+            bundles: Bundles::default(),
             storages: Storages::default(),
         }
     }
 }
 
 impl World {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     // region: Component & Resource registration
     /// Registers the specified [`Component`] into the `World`, assigning it an unique [`ComponentId`].
     pub fn register_component<T: Component>(&mut self) -> ComponentId {
-        self.components.register_component::<T>(&mut self.storages)
+        self.components.register_component::<T>()
     }
 
     /// Registers the specified [`Resource`] into the `World`, assigning it an unique [`ComponentId`].

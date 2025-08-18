@@ -187,7 +187,7 @@ pub(crate) struct Entities {
     /// An `Vec` which holds all fo the `Entity` IDs, that have been freed, to be reused
     /// by new newly allocated ones, instead of creating new IDs.
     ///
-    /// ```
+    /// ```text
     /// pending *----------------------*
     ///         | free ids | requested |
     ///         *----------------------*
