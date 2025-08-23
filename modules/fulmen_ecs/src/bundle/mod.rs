@@ -5,6 +5,7 @@ mod info;
 // --- API Flattening
 pub use info::*;
 
+// --- Imports
 use crate::component::{ComponentId, Components};
 
 /// The `Bundle` trait enables [`Components`](crate::component::Component) to be inserted

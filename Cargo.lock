@@ -339,7 +339,7 @@ dependencies = [
  "fulmen_ecs_macros",
  "fulmen_ptr",
  "log",
- "thiserror 2.0.12",
+ "thiserror 1.0.69",
 ]
 
 [[package]]

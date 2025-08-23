@@ -50,6 +50,7 @@ impl SparseSetIndex for ComponentId {
     }
 }
 
+/// Struct that hold general metadata about registered [`Components`](`Component`) types
 #[derive(Debug, Clone)]
 pub struct ComponentInfo {
     id: ComponentId,

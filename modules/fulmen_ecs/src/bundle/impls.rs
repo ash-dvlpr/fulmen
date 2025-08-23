@@ -1,6 +1,5 @@
-use crate::{bundle::Bundle, component::Component};
-
 use crate::gen_variadic_macro_calls;
+use crate::{bundle::Bundle, component::Component};
 
 /// SAFETY:
 /// - `Bundle::get_or_register_component_ids` only calls `id_callback` once per component.

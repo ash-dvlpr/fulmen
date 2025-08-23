@@ -133,9 +133,9 @@ impl EntityMeta {
 }
 
 /// Describes the location of an `Entity` inside of an [`Archetype`].
-#[derive(Copy, Clone, )]
+#[derive(Copy, Clone)]
 pub(crate) struct EntityLocation {
-    pub archetype: u32, // TODO: Swap 
+    pub archetype: u32, // TODO: Swap
     pub index: u32,
 }
 
@@ -224,7 +224,7 @@ impl Entities {
     }
 
     /// Reserve `count` [`Entity`] IDs.
-    /// 
+    ///
     /// The metadata for the new entities will be lazily allocated when `flush()` gets flushed.
     pub fn reserve_entities(&mut self, count: u32) -> ReserveEntitiesIterator {
         // The old `requested_cursor`, everything beyond that was already reserved,
@@ -266,9 +266,9 @@ impl Entities {
     }
 
     /// Reserve one [`Entity`] ID.
-    /// 
+    ///
     /// The metadata for the new entities will be lazily allocated when `flush()` gets flushed.
-    /// 
+    ///
     /// Equivalent to `Self::reserve_entities(1).next()?`, but without redundant operations.
     pub fn reserve_entity(&mut self) -> Entity {
         let reserve_end = self.requested_cursor.fetch_sub(1, Ordering::Relaxed);

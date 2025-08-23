@@ -1,13 +1,13 @@
 extern crate proc_macro;
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{DeriveInput, parse_macro_input};
 
 // --- Modules
-mod path;
 mod component;
+mod path;
 
 // --- API Flattening
-pub(crate) use path::get_fulmen_path;
+pub(crate) use path::get_fulmen_ecs_path;
 
 /// Implement the `Component` trait.
 #[proc_macro_derive(Component)]

@@ -1,4 +1,3 @@
-
 // Re-export the derive macro for the Trait
 pub use fulmen_ecs_macros::Resource;
 

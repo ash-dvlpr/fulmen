@@ -20,7 +20,7 @@ macro_rules! gen_variadic_macro_calls {
     ($m: ident, $param: tt) => {
         $m!{$param}
     };
-    // 
+    //
     ($m: ident, $param: tt, $($rest_params: tt),*) => {
         crate::gen_variadic_macro_calls!{$m, $($rest_params),*}
         crate::reverse_and_call!{$m [$param $($rest_params)*]}

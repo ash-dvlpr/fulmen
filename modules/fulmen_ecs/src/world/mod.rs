@@ -1,23 +1,23 @@
 use fulmen_ptr::OwnPtr;
 
+use crate::bundle::Bundles;
 use crate::component::{Component, ComponentId, Components};
 use crate::entity::Entities;
 use crate::resource::Resource;
 use crate::storage::Storages;
-use crate::bundle::Bundles;
 
 mod tests;
 
 pub struct World {
     /// Manages all the entities' lifespans.
-    pub(crate) entities: Entities, 
+    pub(crate) entities: Entities,
     /// Registered Data Types.
-    pub(crate) components: Components, 
+    pub(crate) components: Components,
     pub(crate) bundles: Bundles,
     /// Registered sets of `Components`.
-    // pub(crate) archetypes: Archetypes, 
+    // pub(crate) archetypes: Archetypes,
     /// Handles all the data storage of the `World`.
-    pub(crate) storages: Storages, 
+    pub(crate) storages: Storages,
 }
 
 impl Default for World {

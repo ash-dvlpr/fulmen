@@ -10,8 +10,7 @@ struct TestCompB(pub u32);
 #[derive(Resource)]
 struct TestRes(pub u32);
 
-
-pub trait TestTrait { }
+pub trait TestTrait {}
 macro_rules! impl_test_trait {
     () => {};
     ($($name:ident),*) => {

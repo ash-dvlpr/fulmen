@@ -6,9 +6,9 @@ use syn::{DeriveInput, parse_quote};
 
 pub(crate) fn derive_component(mut ast: DeriveInput) -> TokenStream {
     let struct_name = &ast.ident;
-    let fecs_path: syn::Path = crate::get_fulmen_path();
+    let fecs_path: syn::Path = crate::get_fulmen_ecs_path();
 
-    // TODO: Add configuration options to be able to change the 
+    // TODO: Add configuration options to be able to change the default storage type.
 
     // Generics boilerplate
     ast.generics
@@ -27,7 +27,7 @@ pub(crate) fn derive_component(mut ast: DeriveInput) -> TokenStream {
 
 pub(crate) fn derive_resource(mut ast: DeriveInput) -> TokenStream {
     let struct_name = &ast.ident;
-    let fecs_path: syn::Path = crate::get_fulmen_path();
+    let fecs_path: syn::Path = crate::get_fulmen_ecs_path();
 
     // Generics boilerplate
     ast.generics
