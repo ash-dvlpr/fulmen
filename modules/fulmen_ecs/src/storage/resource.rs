@@ -1,4 +1,4 @@
-use crate::component::{Component, ComponentDef, ComponentId, Components};
+use crate::component::{ComponentId, Components};
 use crate::utils::TypeIdMap;
 
 use blob::Blob;

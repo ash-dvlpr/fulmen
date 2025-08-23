@@ -1,7 +1,6 @@
 use super::{Component, StorageType};
 
 use crate::resource::Resource;
-use crate::storage::Storages;
 use crate::utils::{SparseSetIndex, TypeIdMap};
 
 use fulmen_ptr::DropFn;
@@ -116,7 +115,7 @@ impl ComponentDef {
     }
 }
 
-/// Handles all the info about the [`Components`](`Component`) of a [`World`]
+/// Handles all the metadata about the [`Components`](`Component`) of a [`World`]
 #[derive(Debug, Default)]
 pub struct Components {
     component_infos: Vec<ComponentInfo>,
@@ -125,14 +124,64 @@ pub struct Components {
 }
 
 impl Components {
+    /// The total number of [`Components`](`Component`) registered in the [`World`].
     #[inline]
-    pub fn register_component<T: Component>(&mut self) -> ComponentId {
+    pub fn len(&self) -> usize {
+        self.component_infos.len()
+    }
+
+    /// Returns true if no [`Components`](`Component`) registered in the [`World`].
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Gets the [`ComponentInfo`] of an specific component.
+    ///
+    /// Returns `None` if there's no [`Component`] registered in this [`World`]
+    /// with that `ComponentId`.
+    #[inline]
+    pub fn get_info(&self, id: ComponentId) -> Option<&ComponentInfo> {
+        self.component_infos.get(id.index())
+    }
+
+    /// Gets the [`ComponentId`] corresponding to a component type.
+    ///
+    /// Returns `None` if the `type_id` is not registered as a [`Component`] in the [`World`].
+    #[inline]
+    pub fn get_id(&self, type_id: TypeId) -> Option<ComponentId> {
+        self.comp_indices.get(&type_id).copied()
+    }
+
+    /// Gets the [`ComponentId`] corresponding to a resource type.
+    ///
+    /// Returns `None` if the `type_id` is not registered as a [`Resource`] in the [`World`].
+    #[inline]
+    pub fn get_resource_id(&self, type_id: TypeId) -> Option<ComponentId> {
+        self.res_indices.get(&type_id).copied()
+    }
+
+    /// Generic shorthand for [`Components::get_id`]
+    #[inline]
+    pub fn component_id<T: Component>(&self) -> Option<ComponentId> {
+        self.get_id(TypeId::of::<T>())
+    }
+
+    /// Generic shorthand for [`Components::get_resource_id`]
+    #[inline]
+    pub fn resource_id<R: Resource>(&self) -> Option<ComponentId> {
+        self.get_resource_id(TypeId::of::<R>())
+    }
+
+    /// Registers the [`ComponentInfo`] for a new [`Component`] if it wasn't already registered.
+    #[inline]
+    pub(crate) fn register_component<T: Component>(&mut self) -> ComponentId {
         // Get the unique id for the Type
         let type_id = TypeId::of::<T>();
 
         // Look up if the component has already been registered, or register it if it wasn't.
         let comp_id = {
-            let Components {
+            let Self {
                 component_infos,
                 comp_indices,
                 ..
@@ -153,7 +202,8 @@ impl Components {
         comp_id
     }
 
-    pub fn register_resource<R: Resource>(&mut self) -> ComponentId {
+    /// Registers the [`ComponentInfo`] for a new [`Resource`] if it wasn't already registered.
+    pub(crate) fn register_resource<R: Resource>(&mut self) -> ComponentId {
         // Get the unique id for the Type
         let type_id = TypeId::of::<R>();
 
@@ -175,32 +225,5 @@ impl Components {
         };
 
         comp_id
-    }
-
-    #[inline]
-    pub fn get_info(&self, id: ComponentId) -> Option<&ComponentInfo> {
-        self.component_infos.get(id.index())
-    }
-
-    /// Equivalent of [`Components::component_id()`].
-    #[inline]
-    pub fn get_id(&self, type_id: TypeId) -> Option<ComponentId> {
-        self.comp_indices.get(&type_id).copied()
-    }
-
-    /// Equivalent of [`Components::resource_id()`].
-    #[inline]
-    pub fn get_resource_id(&self, type_id: TypeId) -> Option<ComponentId> {
-        self.res_indices.get(&type_id).copied()
-    }
-
-    #[inline]
-    pub fn component_id<T: Component>(&self) -> Option<ComponentId> {
-        self.get_id(TypeId::of::<T>())
-    }
-
-    #[inline]
-    pub fn resource_id<R: Resource>(&self) -> Option<ComponentId> {
-        self.get_resource_id(TypeId::of::<R>())
     }
 }

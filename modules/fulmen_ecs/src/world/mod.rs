@@ -6,6 +6,8 @@ use crate::resource::Resource;
 use crate::storage::Storages;
 use crate::bundle::Bundles;
 
+mod tests;
+
 pub struct World {
     /// Manages all the entities' lifespans.
     pub(crate) entities: Entities, 

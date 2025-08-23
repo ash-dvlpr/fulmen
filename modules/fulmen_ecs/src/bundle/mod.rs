@@ -3,7 +3,6 @@ mod impls;
 mod info;
 
 // --- API Flattening
-pub use impls::*;
 pub use info::*;
 
 use crate::component::{ComponentId, Components};
@@ -16,7 +15,7 @@ use crate::component::{ComponentId, Components};
 ///
 /// # SAFETY:
 /// This trait should NEVER be manually implemented. Implementations of this trait MUST
-/// only make the call to the callback function once, in the order of the types
+/// only make the call to the callback function once per type, in the same order as the types are defined.
 pub unsafe trait Bundle: Send + Sync + 'static {
     /// Calls `id_callback` once per each of this `Bundle`'s [`Components`](crate::component::Component).
     fn get_or_register_component_ids(

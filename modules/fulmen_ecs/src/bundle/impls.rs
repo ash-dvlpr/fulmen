@@ -3,8 +3,8 @@ use crate::{bundle::Bundle, component::Component};
 use crate::gen_variadic_macro_calls;
 
 /// SAFETY:
-/// - `Bundle::get_or_register_component_ids` only calls `id_callback`.
-/// - `Bundle::get_component_ids` only calls `id_callback`.
+/// - `Bundle::get_or_register_component_ids` only calls `id_callback` once per component.
+/// - `Bundle::get_component_ids` only calls `id_callback` once per component.
 unsafe impl<C: Component> Bundle for C {
     fn get_or_register_component_ids(
         world_components: &mut crate::component::Components,
@@ -25,8 +25,8 @@ macro_rules! bundle_tuple_impl {
     () => {};
     ($($name:ident),*) => {
         /// SAFETY:
-        /// - `Bundle::get_or_register_component_ids` only calls `id_callback`.
-        /// - `Bundle::get_component_ids` only calls `id_callback`.
+        /// - `Bundle::get_or_register_component_ids` only calls `id_callback` once per component.
+        /// - `Bundle::get_component_ids` only calls `id_callback` once per component.
         unsafe impl<$($name: Bundle),*> Bundle for ($($name,)*) {
             fn get_or_register_component_ids(
                 world_components: &mut crate::component::Components,
