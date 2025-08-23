@@ -1,14 +1,14 @@
 #![allow(dead_code)]
 use fulmen_ecs::*;
 
+#[derive(Component)]
 struct TestCompA(pub u32);
-impl_component!(TestCompA, SparseSet);
 
+#[derive(Component)]
 struct TestCompB(pub u32);
-impl_component!(TestCompB);
 
+#[derive(Resource)]
 struct TestRes(pub u32);
-impl_resource!(TestRes);
 
 
 pub trait TestTrait { }

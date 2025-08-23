@@ -3,7 +3,8 @@ mod info;
 
 // --- API Flattening
 pub use info::*;
-
+// Re-export the derive macro for the Trait
+pub use fulmen_ecs_macros::Component;
 
 /// The `Component` trait allows types to be registered into a [`World`] to be inserted into [`Entities`](crate::entity::Entity).
 pub trait Component: Send + Sync + 'static {

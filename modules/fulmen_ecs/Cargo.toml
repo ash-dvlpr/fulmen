@@ -8,6 +8,7 @@ edition = "2024"
 
 [dependencies]
 # Modules
+fulmen_ecs_macros = { path = "./macros" }
 fulmen_ptr = { path = "../fulmen_ptr" }
 blob = { path = "../blob" }
 

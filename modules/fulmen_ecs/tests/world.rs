@@ -1,15 +1,15 @@
 use fulmen_ecs::*;
 
-#[derive(Default)]
+#[derive(Resource, Default)]
 pub struct InitRes {
     pub init_entities: Vec<Entity>,
 }
-fulmen_ecs::impl_resource!(InitRes);
 
+#[derive(Component)]
 pub struct CompA(pub usize);
-fulmen_ecs::impl_component!(CompA);
+
+#[derive(Component)]
 pub struct CompB(pub usize);
-fulmen_ecs::impl_component!(CompB);
 
 // #[test]
 // fn test_resources() {

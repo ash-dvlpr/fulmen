@@ -2,14 +2,14 @@
 use crate as fulmen_ecs;
 use fulmen_ecs::*;
 
+#[derive(Component)]
 struct TestCompA(pub u32);
-impl_component!(TestCompA);
 
+#[derive(Component)]
 struct TestCompB(pub u32);
-impl_component!(TestCompB);
 
+#[derive(Component)]
 struct TestCompC(pub u32);
-impl_component!(TestCompC);
 
 #[test]
 fn register_components() {
