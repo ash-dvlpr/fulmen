@@ -8,7 +8,7 @@ pub mod hash;
 pub mod sparse;
 
 // --- API Flattening
-pub use bitset::BitSet;
+pub use bitset::{BitSet, BitSetMut};
 pub use sparse::{SparseSet, SparseSetIndex};
 
 /// HashMap that uses the [`TypeId`] directly as a key.
