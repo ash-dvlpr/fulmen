@@ -31,7 +31,7 @@ impl Blob {
     /// If the `drop_fn` is `None`, values will be leaked in the case that their errased type implements [`Drop`].
     /// This should be set to `None` based on [`core::mem::needs_drop`].
     ///
-    /// # Safetly
+    /// # Safety
     /// The caller must ensure the following:
     /// - `layout` matches that of the values being stored inside of the Blob and has propper alignement.
     ///   This also implies that the `layout` matches that of the values passed to `drop_fn`.
@@ -74,7 +74,7 @@ impl Blob {
 
     // endregion
 
-    // region: Propperties
+    // region: Properties
 
     /// Wether or not the `Blob` has been allocated.
     #[inline]
@@ -157,7 +157,7 @@ impl Blob {
 
     /// Gets the [`Ptr`] to the start of the underlying buffer.
     ///
-    /// # Safety:
+    /// # Safety
     /// The caller must ensure that the `UnsafeBlob` is allocated.
     #[inline]
     pub unsafe fn get_ptr_unchecked(&self) -> Ptr<'_> {
@@ -178,7 +178,7 @@ impl Blob {
 
     /// Gets the [`PtrMut`] to the start of the underlying buffer.
     ///
-    /// # Safety:
+    /// # Safety
     /// The caller must ensure that the `UnsafeBlob` is allocated.
     #[inline]
     pub unsafe fn get_ptr_mut_unchecked(&self) -> PtrMut<'_> {

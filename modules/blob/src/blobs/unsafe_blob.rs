@@ -29,7 +29,7 @@ impl UnsafeBlob {
     /// If the `drop_fn` is `None`, values will be leaked in the case that their errased type implements [`Drop`].
     /// This should be set to `None` based on [`core::mem::needs_drop`].
     ///
-    /// # Safetly
+    /// # Safety
     /// The caller must ensure the following:
     /// - `item_layout` matches that of the values being stored inside of the Blob and has propper alignement.
     ///   This also implies that the `item_layout` matches that of the values passed to `drop_fn`.
@@ -56,7 +56,7 @@ impl UnsafeBlob {
     /// If the `drop_fn` is `None`, values will be leaked in the case that their errased type implements [`Drop`].
     /// This should be set to `None` based on [`core::mem::needs_drop`].
     ///
-    /// # Safetly
+    /// # Safety
     /// The caller must ensure the following:
     /// - `item_layout` matches that of the values being stored inside of the Blob and has propper alignement.
     ///   This also implies that the `item_layout` matches that of the values passed to `drop_fn`.
@@ -82,7 +82,7 @@ impl UnsafeBlob {
 
     // endregion
 
-    // region: Propperties
+    // region: Properties
     /// The [`Layout`] of the values stored inside the `UnsafeBlob`.
     #[inline]
     pub fn item_layout(&self) -> Layout {
@@ -106,7 +106,7 @@ impl UnsafeBlob {
     // region: Data Accesing
     /// Gets the [`Ptr`] to the start of the underlying buffer.
     ///
-    /// # Safety:
+    /// # Safety
     /// The caller must ensure that the `UnsafeBlob` is allocated.
     #[inline]
     pub unsafe fn get_ptr(&self) -> Ptr<'_> {
@@ -121,7 +121,7 @@ impl UnsafeBlob {
 
     /// Gets the [`PtrMut`] to the start of the underlying buffer.
     ///
-    /// # Safety:
+    /// # Safety
     /// The caller must ensure that the `UnsafeBlob` is allocated.
     #[inline]
     pub unsafe fn get_ptr_mut(&self) -> PtrMut<'_> {
