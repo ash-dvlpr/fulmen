@@ -1,13 +1,12 @@
 // --- Imports
 use crate::component::{ComponentId, Components};
-use crate::utils::TypeIdMap;
+use crate::utils::SparseSet;
 
 use blob::Blob;
 
 #[derive(Default)]
 pub struct ResourceStorage {
-    // TODO: refactor into using SparseSet, using ComponentId as a key
-    pub(crate) resources: TypeIdMap<Blob>, // Set [ComponentId -> Data]
+    pub(crate) resources: SparseSet<ComponentId, Blob>, // Set [ComponentId -> Data]
 }
 
 impl ResourceStorage {
@@ -23,17 +22,15 @@ impl ResourceStorage {
         component_id: ComponentId,
         components: &Components,
     ) -> &mut Blob {
-        // Look up if the component has been registered
-        let info = components
-            .get_info(component_id)
-            .expect("Component has not been registered");
-
         // Look up if the resource is listed on the storage, or create it if it wasn't.
-        self.resources
-            .entry(info.type_id())
-            .or_insert_with(|| unsafe {
-                // SAFETY: `ComponentInfo` is considered to be valid, thus `layout` and `drop_fn` are valid.
-                Blob::with_layout_unchecked(info.layout(), info.drop_fn())
-            })
+        self.resources.get_or_insert_with(component_id, || unsafe {
+            // Look up if the component has been registered
+            let info = components
+                .get_info(component_id)
+                .expect("Component has not been registered");
+
+            // SAFETY: `ComponentInfo` is considered to be valid, thus `layout` and `drop_fn` are valid.
+            Blob::with_layout_unchecked(info.layout(), info.drop_fn())
+        })
     }
 }

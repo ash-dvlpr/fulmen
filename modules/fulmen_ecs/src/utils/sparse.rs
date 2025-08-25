@@ -185,6 +185,13 @@ impl<I: SparseSetIndex, V> SparseSet<I, V> {
     }
 }
 
+impl<I: SparseSetIndex, V> Default for SparseSet<I, V> {
+    /// Constructs a new, empty `SparseSet` for the specified types.
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct SparseArray<I: SparseSetIndex, V> {
     values: Vec<Option<V>>,
@@ -250,6 +257,13 @@ impl<I: SparseSetIndex, V> SparseArray<I, V> {
     /// Removes all of the values stored within.
     pub fn clear(&mut self) {
         self.values.clear();
+    }
+}
+
+impl<I: SparseSetIndex, V> Default for SparseArray<I, V> {
+    /// Constructs a new, empty `SparseArray` for the specified types.
+    fn default() -> Self {
+        Self::new()
     }
 }
 
