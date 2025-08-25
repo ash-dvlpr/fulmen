@@ -37,6 +37,7 @@ impl World {
     }
 
     // region: Component & Resource registration
+
     /// Registers the specified [`Component`] into the `World`, assigning it an unique [`ComponentId`].
     pub fn register_component<T: Component>(&mut self) -> ComponentId {
         self.components.register_component::<T>()
@@ -55,19 +56,12 @@ impl World {
     /// The value returned by [`Default::default`] will be used.
     /// If the resource already had a value registered, nothing happens.
     pub fn init_resource<R: Resource + Default>(&mut self) {
+        let value = R::default();
         let id = self.components.register_resource::<R>();
-        let store = self
-            .storages
-            .resources
-            .fetch_resource_storage(id, &mut self.components);
-
-        if !store.has_value() {
-            let value = R::default();
-            OwnPtr::from(value, |ptr| unsafe {
-                // SAFETY: ComponentId was just registered for the type `R`
-                store.insert_data(ptr);
-            });
-        }
+        OwnPtr::from(value, |ptr| unsafe {
+            // SAFETY: `id` was just registered for the type `R`.
+            self.insert_resource_by_id::<false>(id, ptr);
+        });
     }
 
     /// Inserts a [`Resource`] into the `World` with the given `value`.
@@ -76,27 +70,43 @@ impl World {
     pub fn insert_resource<R: Resource>(&mut self, value: R) {
         let id = self.components.register_resource::<R>();
         OwnPtr::from(value, |ptr| unsafe {
-            // SAFETY: ComponentId was just registered for the type of `value`
-            self.insert_resource_by_id(id, ptr);
+            // SAFETY: `id` was just registered for the type `R`.
+            self.insert_resource_by_id::<true>(id, ptr);
         });
     }
 
-    /// Inserts a `Resource` of type `R` inside the `World`, replacing any old value which may be present.
+    /// Inserts a [`Resource`] inside the `World`.
     ///
-    /// Safety
-    /// The caller must ensure that the value pointed to by `value` corresponds to that of `component_id`.
-    #[inline]
-    pub(crate) unsafe fn insert_resource_by_id(&mut self, id: ComponentId, ptr: OwnPtr<'_>) {
-        let store = self
-            .storages
-            .resources
-            .fetch_resource_storage(id, &mut self.components);
+    /// If `OVERRIDE` is `true`, it will replace any value which may already be present.
+    ///
+    /// # Safety
+    /// The caller must ensure the following:
+    ///  - `id` comes from [`Resource`] type a registered on this `World`.
+    ///  - The type of the value pointed to by `ptr` corresponds to that of `id`.
+    #[inline(always)]
+    pub(crate) unsafe fn insert_resource_by_id<const OVERRIDE: bool>(
+        &mut self,
+        id: ComponentId,
+        ptr: OwnPtr<'_>,
+    ) {
+        // SAFETY: the caller ensures that `id` is that of a registered resource.
+        let store = unsafe {
+            self.storages
+                .resources
+                .fetch_resource_storage(id, &mut self.components)
+        };
 
-        // SAFETY: the caller ensures that `value` and `id` refers to the same value.
-        unsafe { store.insert_data(ptr) };
+        if OVERRIDE || !store.has_value() {
+            // SAFETY: the caller ensures that `ptr` and `id` refers to the same type.
+            unsafe { store.insert_data(ptr) };
+        }
     }
 
     // endregion
 
-    // Getters for Resources
+    // region: Getters for Resources
+
+    // TODO:
+
+    // endregion
 }

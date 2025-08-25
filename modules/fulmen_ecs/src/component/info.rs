@@ -17,11 +17,10 @@ use std::any::TypeId;
 ///
 /// `ComponentId` is used instead of [`TypeId`] to ensure they are incremental in nature.
 ///
-/// ## SAFETY
-/// * This value is only guaranteed to be unique inside the same [`World`](crate::World),
+/// # Safety
+/// - This value is only guaranteed to be unique inside the same [`World`](crate::World),
 ///   and thus using a `ComponentId` outside of it's respective [`World`](crate::World) is undefined behaviour.
-///
-/// * Having more than [`usize::MAX`] different registered [`Component`]s will result in the program crashing,
+/// - Having more than [`usize::MAX`] different registered [`Components`](`Component`) will result in the program crashing,
 ///   as that is the upper component limit.
 #[repr(transparent)]
 #[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]

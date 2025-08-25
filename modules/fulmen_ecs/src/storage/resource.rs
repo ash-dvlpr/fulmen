@@ -13,8 +13,12 @@ pub struct ResourceStorage {
 impl ResourceStorage {
     /// Fetches the underlying storage for a given [`ComponentId`] based on it's registered [`ComponentDef`].
     ///
-    /// If there was no storage registered for that [`ComponentId`]
-    pub fn fetch_resource_storage(
+    /// If there was no storage registered for that [`ComponentId`].
+    /// 
+    /// # Safety
+    /// The caller must ensure the following:
+    ///  - `id` is registered [`ComponentId`] inside of `components` as a [`Resource`](`crate::Resource`).
+    pub unsafe fn fetch_resource_storage(
         &mut self,
         component_id: ComponentId,
         components: &Components,

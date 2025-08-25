@@ -12,8 +12,8 @@ use std::collections::HashSet;
 ///
 /// `BundleId` is used instead of [`TypeId`] to ensure they are incremental in nature.
 ///
-/// ## SAFETY
-/// * This value is only guaranteed to be unique inside the same [`World`].
+/// # Safety
+/// - This value is only guaranteed to be unique inside the same [`World`].
 ///
 /// [`World`]: crate::world::World
 #[repr(transparent)]
@@ -53,7 +53,7 @@ pub struct BundleInfo {
 impl BundleInfo {
     /// Create a new [`BundleInfo`].
     ///
-    /// # SAFETY:
+    /// # Safety
     /// All the `ComponentIDs` in `component_ids` must be valid for the owning `World`,
     /// and must be in the same order as specified by the `Bundle` trait.
     ///
@@ -161,12 +161,13 @@ impl Bundles {
                 // Create the new ID
                 let id = BundleId::new(bundle_infos.len());
                 let type_name = core::any::type_name::<B>();
-                // SAFETY: `B:: get_or_register_component_ids` ensures:
+                // SAFETY: `Bundle:: get_or_register_component_ids` ensures:
                 // - The ids are valid for the containing `World`.
                 // - The ids are in the order declared by the `Bundle`.
                 // - It's expected for this method to panic if there are duplicated component in the bundle.
                 let info = unsafe { BundleInfo::new(type_name, id, component_ids) };
                 bundle_infos.push(info);
+
                 // TODO; Handle recursive required components (aka parenting data)
 
                 id

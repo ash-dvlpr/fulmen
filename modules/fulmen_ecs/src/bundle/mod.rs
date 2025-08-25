@@ -14,7 +14,7 @@ use crate::component::{ComponentId, Components};
 /// Each bundle represents a static set of [`Component`](crate::component::Component) types, of which there
 /// can only be one of each [`Component`](crate::component::Component) type, per bundle.
 ///
-/// # SAFETY:
+/// # Safety
 /// This trait should NEVER be manually implemented. Implementations of this trait MUST
 /// only make the call to the callback function once per type, in the same order as the types are defined.
 pub unsafe trait Bundle: Send + Sync + 'static {
