@@ -1,3 +1,4 @@
+// --- Imports
 use crate::{
     bundle::Bundle,
     component::{ComponentId, Components},

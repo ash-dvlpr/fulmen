@@ -1,5 +1,8 @@
+// --- Modules
 mod resource;
-use resource::ResourceStorage;
+
+// --- API Flattening
+pub use resource::ResourceStorage;
 
 /// The backing data of a [`World`](crate::world::World)
 #[derive(Default)]

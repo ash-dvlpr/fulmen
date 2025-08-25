@@ -1,3 +1,4 @@
+// --- Imports
 use super::{Component, StorageType};
 
 use crate::resource::Resource;

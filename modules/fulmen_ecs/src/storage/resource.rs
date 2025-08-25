@@ -1,3 +1,4 @@
+// --- Imports
 use crate::component::{ComponentId, Components};
 use crate::utils::TypeIdMap;
 
