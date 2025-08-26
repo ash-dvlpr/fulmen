@@ -1,12 +1,15 @@
-use fulmen_ptr::OwnPtr;
+// --- Modules
+#[cfg(test)]
+mod tests;
 
+// --- Imports
 use crate::bundle::Bundles;
 use crate::component::{Component, ComponentId, Components};
 use crate::entity::Entities;
 use crate::resource::Resource;
 use crate::storage::Storages;
 
-mod tests;
+use fulmen_ptr::OwnPtr;
 
 pub struct World {
     /// Manages all the entities' lifespans.
@@ -39,8 +42,8 @@ impl World {
     // region: Component & Resource registration
 
     /// Registers the specified [`Component`] into the `World`, assigning it an unique [`ComponentId`].
-    pub fn register_component<T: Component>(&mut self) -> ComponentId {
-        self.components.register_component::<T>()
+    pub fn register_component<C: Component>(&mut self) -> ComponentId {
+        self.components.register_component::<C>()
     }
 
     /// Registers the specified [`Resource`] into the `World`, assigning it an unique [`ComponentId`].
@@ -104,7 +107,91 @@ impl World {
 
     // endregion
 
+    // region: Getters for ComponentIDs
+
+    /// Gets the [`ComponentId`] of the given [`Component`] `C` on this `World` if it exists.
+    pub fn get_component_id<C: Component>(&self) -> Option<ComponentId> {
+        self.components.component_id::<C>()
+    }
+
+    /// Gets the [`ComponentId`] of the given [`Resource`] `R` on this `World` if it exists.
+    pub fn get_resource_id<R: Resource>(&self) -> Option<ComponentId> {
+        self.components.resource_id::<R>()
+    }
+
+    // endregion
+
     // region: Getters for Resources
+
+    /// Gets a reference to a [`Resource`] of the given type if it exists.
+    ///
+    /// Will return `None` if the resource `R` was not registered  o it wasn't initialized.
+    ///
+    /// *See also: [`World::register_resource`]*
+    pub fn get_resource<R: Resource>(&self) -> Option<&R> {
+        // Check for component registration
+        if let Some(id) = self.get_resource_id::<R>()
+            && let Some(storage) = unsafe { self.storages.resources.get_resource_storage(id) }
+        {
+            if storage.has_value() {
+                // SAFETY: `storage` was created for type `R`, and initialization was checked
+                unsafe { Some(storage.downcast_ref_unchecked::<R>()) }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Gets a reference to a [`Resource`] of the given type if it exists.
+    ///
+    /// Will return `None` if the resource `R` was not registered or it wasn't initialized.
+    ///
+    /// *See also: [`World::register_resource`]*
+    pub fn get_resource_mut<R: Resource>(&mut self) -> Option<&mut R> {
+        // Check for component registration
+        if let Some(id) = self.get_resource_id::<R>()
+            && let Some(storage) = unsafe { self.storages.resources.get_resource_storage_mut(id) }
+        {
+            if storage.has_value() {
+                // SAFETY: `storage` was created for type `R`, and initialization was checked
+                unsafe { Some(storage.downcast_mut_unchecked::<R>()) }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Gets a reference to the [`Resource`] of the specified type.
+    ///
+    /// # Panics
+    /// Will panic if the resource was not initialized.
+    pub fn resource<R: Resource>(&self) -> &R {
+        match self.get_resource::<R>() {
+            Some(res) => res,
+            None => panic!(
+                "Tried to acquire uninitialized resource `{}` from `World`",
+                core::any::type_name::<R>()
+            ),
+        }
+    }
+
+    /// Gets a mutable reference to the [`Resource`] of the specified type.
+    ///
+    /// # Panics
+    /// Will panic if the resource was not initialized.
+    pub fn resource_mut<R: Resource>(&mut self) -> &mut R {
+        match self.get_resource_mut::<R>() {
+            Some(res) => res,
+            None => panic!(
+                "Tried to mutably acquire uninitialized resource `{}` from `World`",
+                core::any::type_name::<R>()
+            ),
+        }
+    }
 
     // TODO:
 

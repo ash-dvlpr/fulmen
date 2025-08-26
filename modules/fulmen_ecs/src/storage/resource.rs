@@ -10,10 +10,32 @@ pub struct ResourceStorage {
 }
 
 impl ResourceStorage {
-    /// Fetches the underlying storage for a given [`ComponentId`] based on it's registered [`ComponentDef`].
+    /// Tries to get a reference to the underlying storage for a given [`ComponentId`].
     ///
-    /// If there was no storage registered for that [`ComponentId`].
-    /// 
+    /// # Safety
+    /// The caller must ensure the following:
+    ///  - `id` is registered [`ComponentId`] inside of `components` as a [`Resource`](`crate::Resource`).
+    pub unsafe fn get_resource_storage(&self, component_id: ComponentId) -> Option<&Blob> {
+        self.resources.get(component_id)
+    }
+
+    /// Tries to get a mutable reference to the underlying storage for a given [`ComponentId`].
+    ///
+    /// # Safety
+    /// The caller must ensure the following:
+    ///  - `id` is registered [`ComponentId`] inside of `components` as a [`Resource`](`crate::Resource`).
+    pub unsafe fn get_resource_storage_mut(
+        &mut self,
+        component_id: ComponentId,
+    ) -> Option<&mut Blob> {
+        self.resources.get_mut(component_id)
+    }
+
+    /// Fetches the underlying storage for a given [`ComponentId`] based on it's registered 
+    /// [`ComponentDef`](crate::component::ComponentDef).
+    ///
+    /// If there was no resource storage registered for that [`ComponentId`], it will be initialized.
+    ///
     /// # Safety
     /// The caller must ensure the following:
     ///  - `id` is registered [`ComponentId`] inside of `components` as a [`Resource`](`crate::Resource`).

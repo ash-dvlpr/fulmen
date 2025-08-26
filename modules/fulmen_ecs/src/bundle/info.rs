@@ -57,8 +57,8 @@ impl BundleInfo {
     /// All the `ComponentIDs` in `component_ids` must be valid for the owning `World`,
     /// and must be in the same order as specified by the `Bundle` trait.
     ///
-    /// # PANICS:
-    /// The method will panic if the `component_ids` contains duplicated elements.
+    /// # Panics
+    /// Will panic if the `component_ids` contains duplicated elements.
     unsafe fn new(
         bundle_type_name: &'static str,
         id: BundleId,
@@ -133,8 +133,8 @@ impl Bundles {
 
     /// Registers the [`BundleInfo`] for a new [`Component Bundle`](`Bundle`) if it doesn't exist.
     ///
-    /// # PANICS:
-    /// The method will panic if the [`Bundle`] contains duplicated [`Components`](`Component`).
+    /// # Panics
+    /// Will panic if the [`Bundle`] contains duplicated [`Components`](`Component`).
     #[inline]
     pub(crate) fn register_bundle<B: Bundle>(
         &mut self,
