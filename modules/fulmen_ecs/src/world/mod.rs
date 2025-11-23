@@ -193,7 +193,7 @@ impl World {
         }
     }
 
-    // TODO:
+    // TODO: Non Send resources
 
     // endregion
 }

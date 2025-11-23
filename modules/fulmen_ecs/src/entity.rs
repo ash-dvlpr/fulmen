@@ -1,5 +1,5 @@
 use core::sync::atomic::{AtomicIsize, Ordering};
-use core::{fmt, hash::Hash, num::NonZeroU32};
+use core::{fmt, hash::Hash};
 
 /// Unique ID of an `Entity`, that also acts as a handle.
 ///
@@ -16,14 +16,14 @@ pub struct Entity {
     // Do not reorder the fields. The ordering is explicitly used by repr(C)
     // to make this struct equivalent to a u64 in the eyes of LLVM.
     id: u32,
-    generation: NonZeroU32,
+    generation: u32,
 }
 
 impl Entity {
     /// A dummy `Entity` that acts as an "uninitialized" Entity.
     pub(crate) const INVALID: Entity = Entity {
         id: u32::MAX,
-        generation: NonZeroU32::MIN,
+        generation: 0,
     };
 
     /// The `id` of the `Entity`.
@@ -35,12 +35,12 @@ impl Entity {
     /// The `generation` of the `Entity`.
     #[inline(always)]
     pub fn generation(&self) -> u32 {
-        self.generation.get()
+        self.generation
     }
 
     /// Creates a new `Entity` from a raw [`u32`] entity `id` and a `generation`.
     #[inline(always)]
-    pub(crate) const fn from_raw_id_and_generation(id: u32, generation: NonZeroU32) -> Entity {
+    pub(crate) const fn from_raw_id_and_generation(id: u32, generation: u32) -> Entity {
         Entity { id, generation }
     }
 
@@ -56,17 +56,14 @@ impl Entity {
     /// Convert the entity to it's [`u64`] representation.
     #[inline(always)]
     pub const fn to_bits(&self) -> u64 {
-        ((self.id as u64) << u32::BITS) | (self.generation.get() as u64)
+        ((self.id as u64) << u32::BITS) | (self.generation as u64)
     }
 
     /// Reconstruct an `Entity` that was converted to a [`u64`] using [`Self::to_bits`].
     pub const fn from_bits(bits: u64) -> Option<Entity> {
         Some(Entity {
             id: (bits >> u32::BITS) as u32,
-            generation: match NonZeroU32::new(bits as u32) {
-                Some(g) => g,
-                None => return None,
-            },
+            generation: bits as u32,
         })
     }
 }
@@ -106,13 +103,13 @@ impl Hash for Entity {
 
 impl fmt::Display for Entity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Entity [{}.v{}]", self.id, self.generation.get())
+        write!(f, "Entity [{}.v{}]", self.id, self.generation)
     }
 }
 
 impl fmt::Debug for Entity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Entity [{}.v{}]", self.id, self.generation.get())
+        write!(f, "Entity [{}.v{}]", self.id, self.generation)
     }
 }
 
@@ -121,13 +118,13 @@ impl fmt::Debug for Entity {
 /// This information includes the current `generation`, for tracking the validty of the [`Entity`] handles.
 #[derive(Copy, Clone)]
 pub(crate) struct EntityMeta {
-    generation: NonZeroU32,
+    generation: u32,
     location: EntityLocation,
 }
 
 impl EntityMeta {
     pub(crate) const EMPTY: EntityMeta = EntityMeta {
-        generation: NonZeroU32::MIN,
+        generation: 0,
         location: EntityLocation::INVALID,
     };
 }
