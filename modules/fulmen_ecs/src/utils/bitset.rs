@@ -572,7 +572,7 @@ mod tests {
 
     mod bitset_mut {
         use super::BitSetMut;
-        use super::{BitBlock, Ordering, LHS, RHS};
+        use super::{BitBlock, LHS, Ordering, RHS};
 
         #[test]
         fn new() {
@@ -718,7 +718,7 @@ mod tests {
 
     mod bitset {
         use super::BitSet;
-        use super::{BitBlock, Ordering, LHS, RHS};
+        use super::{BitBlock, LHS, Ordering, RHS};
 
         #[test]
         fn from_raw_bits() {
