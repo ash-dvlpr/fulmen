@@ -69,10 +69,7 @@ impl BundleInfo {
             let mut seen = HashSet::new();
             for &id in &component_ids {
                 if !seen.insert(id) {
-                    panic!(
-                        "Bundle Type '{}' contains duplicated Components",
-                        bundle_type_name
-                    );
+                    panic!("Bundle Type '{}' contains duplicated Components", bundle_type_name);
                 }
             }
         }

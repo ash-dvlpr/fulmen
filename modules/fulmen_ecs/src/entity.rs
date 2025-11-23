@@ -229,9 +229,7 @@ impl Entities {
     pub fn reserve_entities(&mut self, count: u32) -> ReserveEntitiesIterator {
         // The old `requested_cursor`, everything beyond that was already reserved,
         // so we decrement it again to reserve more entities via an atomic subtraction.
-        let reserve_end = self
-            .requested_cursor
-            .fetch_sub(count as isize, Ordering::Relaxed);
+        let reserve_end = self.requested_cursor.fetch_sub(count as isize, Ordering::Relaxed);
         // We calculate the new value of `requested_cursor`, as we got the old pre-op value.
         let reserve_start = reserve_end - count as isize;
 

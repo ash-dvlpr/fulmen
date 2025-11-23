@@ -217,10 +217,7 @@ impl UnsafeBlob {
     /// See [`GlobalAlloc::alloc`].
     #[inline]
     pub(super) unsafe fn alloc_buffer(&mut self, capacity: NonZeroUsize) {
-        debug_assert!(
-            !self.is_allocated(),
-            "UnsafeBlob shouldn't be initalized more than once"
-        );
+        debug_assert!(!self.is_allocated(), "UnsafeBlob shouldn't be initalized more than once");
 
         if !self.is_zst() {
             // SAFETY: item_layout is not of a ZST and capacity > 0 so the array_layout will be valid.
@@ -329,10 +326,7 @@ impl UnsafeBlob {
                 capacity >= len,
                 "Length exceedes the capacity, this should be impossible."
             );
-            debug_assert!(
-                capacity > 0,
-                "Buffer was allocated but capacity doesn't match."
-            );
+            debug_assert!(capacity > 0, "Buffer was allocated but capacity doesn't match.");
 
             // SAFETY: The caller ensures that `len` and `capacity` are correct.
             unsafe {
@@ -388,11 +382,7 @@ impl UnsafeBlob {
         let destination = unsafe { self.get_unchecked_mut(index) };
         // SAFETY: It's safe to copy
         unsafe {
-            core::ptr::copy::<u8>(
-                value.as_ptr(),
-                destination.as_ptr(),
-                self.item_layout.size(),
-            );
+            core::ptr::copy::<u8>(value.as_ptr(), destination.as_ptr(), self.item_layout.size());
         }
     }
 
@@ -445,7 +435,11 @@ impl UnsafeBlob {
     }
 
     #[inline]
-    pub unsafe fn swap_remove_unchecked(&mut self, _index: usize, _last_index: usize) -> OwnPtr<'_> {
+    pub unsafe fn swap_remove_unchecked(
+        &mut self,
+        _index: usize,
+        _last_index: usize,
+    ) -> OwnPtr<'_> {
         todo!();
     }
 

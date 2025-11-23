@@ -128,8 +128,7 @@ impl Blob {
         if !self.has_value() {
             unsafe {
                 // SAFETY: `Blob` was not allocated
-                self.data
-                    .alloc_buffer(NonZeroUsize::new_unchecked(Self::CAPACITY));
+                self.data.alloc_buffer(NonZeroUsize::new_unchecked(Self::CAPACITY));
                 // SAFETY: `ptr` is valid for the length of this scope.
                 self.data.initialize_unchecked(Self::INDEX, ptr);
             }

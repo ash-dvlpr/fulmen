@@ -1,4 +1,4 @@
-use proc_macro_crate::{FoundCrate, crate_name};
+use proc_macro_crate::{crate_name, FoundCrate};
 
 /// Attempts to return the correct path for the base crate
 pub(crate) fn get_fulmen_ecs_path() -> syn::Path {

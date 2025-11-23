@@ -2,7 +2,7 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, parse_quote};
+use syn::{parse_quote, DeriveInput};
 
 pub(crate) fn derive_component(mut ast: DeriveInput) -> TokenStream {
     let struct_name = &ast.ident;
@@ -22,7 +22,8 @@ pub(crate) fn derive_component(mut ast: DeriveInput) -> TokenStream {
         impl #impl_generics #fecs_path::component::Component for #struct_name #type_generics #where_clause {
             const STORAGE_TYPE: #fecs_path::component::StorageType = #fecs_path::component::StorageType::Table;
         }
-    }.into()
+    }
+    .into()
 }
 
 pub(crate) fn derive_resource(mut ast: DeriveInput) -> TokenStream {
@@ -40,5 +41,6 @@ pub(crate) fn derive_resource(mut ast: DeriveInput) -> TokenStream {
     quote! {
         impl #impl_generics #fecs_path::resource::Resource for #struct_name #type_generics #where_clause {
         }
-    }.into()
+    }
+    .into()
 }

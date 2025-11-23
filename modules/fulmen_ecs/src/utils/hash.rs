@@ -23,9 +23,9 @@ impl Hasher for NoOpHasher {
     }
 
     fn write(&mut self, bytes: &[u8]) {
-        self.0 = bytes.iter().fold(self.0, |hash, b| {
-            hash.rotate_left(8).wrapping_add(*b as u64)
-        });
+        self.0 = bytes
+            .iter()
+            .fold(self.0, |hash, b| hash.rotate_left(8).wrapping_add(*b as u64));
     }
 
     #[inline]

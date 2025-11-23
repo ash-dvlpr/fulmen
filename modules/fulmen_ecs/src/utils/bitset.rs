@@ -572,7 +572,7 @@ mod tests {
 
     mod bitset_mut {
         use super::BitSetMut;
-        use super::{BitBlock, LHS, Ordering, RHS};
+        use super::{BitBlock, Ordering, LHS, RHS};
 
         #[test]
         fn new() {
@@ -671,10 +671,7 @@ mod tests {
         test_eq_and_ord_invariants!(BitSetMut);
 
         fn get_lhs_rhs() -> (BitSetMut, BitSetMut) {
-            (
-                <BitSetMut>::from_raw_bits(&[LHS]),
-                <BitSetMut>::from_raw_bits(&[RHS]),
-            )
+            (<BitSetMut>::from_raw_bits(&[LHS]), <BitSetMut>::from_raw_bits(&[RHS]))
         }
 
         #[test]
@@ -721,7 +718,7 @@ mod tests {
 
     mod bitset {
         use super::BitSet;
-        use super::{BitBlock, LHS, Ordering, RHS};
+        use super::{BitBlock, Ordering, LHS, RHS};
 
         #[test]
         fn from_raw_bits() {

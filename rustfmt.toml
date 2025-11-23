@@ -1,0 +1,19 @@
+style_edition = "2021"
+
+# Line style
+max_width = 100
+# comment_width = 100
+chain_width = 70
+fn_call_width = 80
+
+# Braces
+# brace_style = "SameLineWhere"
+# control_brace_style = "ClosingNextLine"
+single_line_if_else_max_width = 60
+single_line_let_else_max_width = 60
+
+# Other
+# enum_discrim_align_threshold = 100
+# float_literal_trailing_zero = "IfNoPostfix"
+use_field_init_shorthand = true
+use_try_shorthand = true

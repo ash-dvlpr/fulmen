@@ -31,7 +31,7 @@ impl ResourceStorage {
         self.resources.get_mut(component_id)
     }
 
-    /// Fetches the underlying storage for a given [`ComponentId`] based on it's registered 
+    /// Fetches the underlying storage for a given [`ComponentId`] based on it's registered
     /// [`ComponentDef`](crate::component::ComponentDef).
     ///
     /// If there was no resource storage registered for that [`ComponentId`], it will be initialized.

@@ -6,10 +6,7 @@ use core::ptr::{self, NonNull};
 /// * [`NonNull::dangling`]
 pub const fn dangling_from_layout(layout: Layout) -> NonNull<u8> {
     debug_assert!(layout.align() > 0, "Alignment must be non zero");
-    debug_assert!(
-        layout.align().is_power_of_two(),
-        "Alignment must be a power of two"
-    );
+    debug_assert!(layout.align().is_power_of_two(), "Alignment must be a power of two");
 
     // SAFETY: align() is non-zero usize which is then casted
     // to a *mut T. Therefore, `ptr` is not null and the conditions for
